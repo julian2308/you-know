@@ -5,6 +5,10 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
+import { mockData } from './data/mockData';
+import usePayoutMetrics from './hooks/usePayoutMetrics';
+import useSecurityScore from './hooks/useSecurityScore';
+import useAlerts from './hooks/useAlerts';
 
 // Tema profesional para You Know - Dashboard de Pagos
 const darkTheme = createTheme({
@@ -86,8 +90,15 @@ const darkTheme = createTheme({
   },
 });
 
+
 const App = () => {
   const drawerWidth = 240;
+  // Obtener métricas y alertas críticas
+  const payouts = mockData.payoutEvents;
+  const metrics = usePayoutMetrics(payouts);
+  const security = useSecurityScore(payouts, metrics.successRate);
+  const allAlerts = useAlerts(payouts, security.score);
+  const criticalAlerts = allAlerts.filter(a => a.severity === 'critical').slice(0, 3);
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -96,7 +107,7 @@ const App = () => {
         <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0A0E27' }}>
           <Sidebar drawerWidth={drawerWidth} />
           <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <Topbar drawerWidth={drawerWidth} />
+            <Topbar drawerWidth={drawerWidth} alerts={criticalAlerts} />
             <Box
               component="main"
               sx={{ 
@@ -107,7 +118,7 @@ const App = () => {
               }}
             >
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<Dashboard hideQuickAlertsCard />} />
                 <Route path="/alerts" element={<Alerts />} />
               </Routes>
             </Box>

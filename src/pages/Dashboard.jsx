@@ -209,37 +209,7 @@ const Dashboard = () => {
         </Typography>
       </Box>
 
-      {/* Card de Alertas Rápido */}
-      {alerts.length > 0 && (
-        <Paper sx={{ p: 3, mb: 4, background: 'linear-gradient(135deg, rgba(15, 122, 255, 0.05) 0%, rgba(255, 59, 48, 0.05) 100%)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <WarningIcon sx={{ color: '#FF9500', fontSize: 28 }} />
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Tienes {alerts.length} alerta(s) pendiente(s)
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                  {alerts.filter(a => a.severity === 'critical').length} críticas • Ve al Centro de Alertas para más detalles
-                </Typography>
-              </Box>
-            </Box>
-            <Button
-              onClick={() => navigate('/alerts')}
-              variant="contained"
-              sx={{
-                background: '#FF9500',
-                color: '#fff',
-                textTransform: 'none',
-                fontWeight: 600,
-                '&:hover': { opacity: 0.8 }
-              }}
-            >
-              Ir a Alertas
-            </Button>
-          </Box>
-        </Paper>
-      )}
+      {/* Card de Alertas Rápido (eliminada, ahora solo en Topbar) */}
 
       {/* KPIs Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
