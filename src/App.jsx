@@ -10,6 +10,8 @@ import { mockData } from './data/mockData';
 import usePayoutMetrics from './hooks/usePayoutMetrics';
 import useSecurityScore from './hooks/useSecurityScore';
 import useAlerts from './hooks/useAlerts';
+import { useEffect, useState } from "react";
+import { client } from "./conf/ws";
 
 // Tema profesional para You Know - Dashboard de Pagos
 const darkTheme = createTheme({
@@ -94,6 +96,24 @@ const darkTheme = createTheme({
 
 const App = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
+  const [alerts, setAlerts] = useState([]);
+
+
+  useEffect(() => {
+    client.onConnect = () => {
+    client.subscribe("/topic/alerts", msg => {
+      const alert = JSON.parse(msg.body);
+      setAlerts(prev => [alert, ...prev]);
+    });
+
+  };
+
+  client.activate();
+
+    return () => {
+      client.deactivate();
+    };
+  }, []);
   
   // Obtener métricas y alertas críticas
   const payouts = mockData.payoutEvents;
@@ -102,7 +122,9 @@ const App = () => {
   const allAlerts = useAlerts(payouts, security.score);
   const criticalAlerts = allAlerts.filter(a => a.severity === 'critical').slice(0, 3);
 
+
   return (
+    
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <Router>
@@ -120,6 +142,30 @@ const App = () => {
                 p: 3,
               }}
             >
+              <div style={{ padding: 20 }}>
+                {alerts.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    {alerts.map((alert, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: "#ffe5e5",
+                          border: "1px solid #ff9999",
+                          padding: 10,
+                          marginBottom: 8,
+                          borderRadius: 4
+                        }}
+                      >
+                        <strong>🚨 {alert.level}</strong>
+                        <div>{alert.message}</div>
+                        <small>
+                          {new Date(alert.timestamp).toLocaleTimeString()}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/providers" element={<Providers />} />
