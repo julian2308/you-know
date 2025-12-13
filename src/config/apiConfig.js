@@ -1,0 +1,133 @@
+/**
+ * Configuración centralizada para las llamadas API
+ * Las URLs se pueden definir vía variables de entorno VITE_*
+ */
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
+// Endpoints de Providers
+const PROVIDERS_ENDPOINTS = {
+  getAll: () => `${API_BASE_URL}/providers`,
+  getByCountry: (country) => `${API_BASE_URL}/providers/country/${country}`,
+  getById: (id) => `${API_BASE_URL}/providers/${id}`,
+  getMetrics: (providerId) => `${API_BASE_URL}/providers/${providerId}/metrics`,
+  getByCountryAndName: (country, name) => `${API_BASE_URL}/providers/${country}/${name}`,
+};
+
+// Endpoints de Payouts
+const PAYOUTS_ENDPOINTS = {
+  getAll: () => `${API_BASE_URL}/payouts`,
+  getByCountry: (country) => `${API_BASE_URL}/payouts/country/${country}`,
+  getByProvider: (providerId) => `${API_BASE_URL}/payouts/provider/${providerId}`,
+  getByCountryAndProvider: (country, provider) => `${API_BASE_URL}/payouts/country/${country}/provider/${provider}`,
+  getMetrics: () => `${API_BASE_URL}/payouts/metrics`,
+};
+
+// Endpoints de Seguridad/Análisis
+const SECURITY_ENDPOINTS = {
+  getScore: () => `${API_BASE_URL}/security/score`,
+  getScoreByCountry: (country) => `${API_BASE_URL}/security/score/country/${country}`,
+  getAlerts: () => `${API_BASE_URL}/security/alerts`,
+};
+
+// Función auxiliar para hacer llamadas API
+export const apiClient = {
+  async get(url, options = {}) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API GET Error:', error);
+      throw error;
+    }
+  },
+
+  async post(url, data, options = {}) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        body: JSON.stringify(data),
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API POST Error:', error);
+      throw error;
+    }
+  },
+
+  async put(url, data, options = {}) {
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        body: JSON.stringify(data),
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API PUT Error:', error);
+      throw error;
+    }
+  },
+
+  async delete(url, options = {}) {
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API DELETE Error:', error);
+      throw error;
+    }
+  },
+};
+
+export {
+  API_BASE_URL,
+  BACKEND_URL,
+  PROVIDERS_ENDPOINTS,
+  PAYOUTS_ENDPOINTS,
+  SECURITY_ENDPOINTS,
+};
