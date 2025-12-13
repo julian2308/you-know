@@ -36,9 +36,20 @@ const Dashboard = () => {
     const latencyPenalty = (timeouts / totalPayouts) * 20;
     score -= latencyPenalty;
     
-    // 3. Factor: Diversificación de proveedores (20 puntos máx)
-    const providers = Array.from(new Set(payouts.map(p => p.provider))).length;
-    const diversificationFactor = Math.min((providers / 3) * 20, 20);
+    // 3. Factor: Diversificación de proveedores por país (20 puntos máx)
+    const providersByCountry = {};
+    payouts.forEach(p => {
+      if (!providersByCountry[p.country]) {
+        providersByCountry[p.country] = new Set();
+      }
+      providersByCountry[p.country].add(p.provider);
+    });
+    
+    const countries = Object.keys(providersByCountry);
+    const avgProvidersPerCountry = countries.reduce((sum, country) => 
+      sum + providersByCountry[country].size, 0) / countries.length;
+    
+    const diversificationFactor = Math.min((avgProvidersPerCountry / 2) * 20, 20);
     score += diversificationFactor;
     
     const finalScore = Math.max(score, 0);
