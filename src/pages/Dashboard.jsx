@@ -284,7 +284,7 @@ const Dashboard = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>{provider}</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F7AFF' }}>
-                        {percentage}% • {providerSuccessRate}% ✓
+                        {percentage}%
                       </Typography>
                     </Box>
                     <LinearProgress variant="determinate" value={parseInt(percentage)} sx={{ height: 8, borderRadius: 4 }} />
