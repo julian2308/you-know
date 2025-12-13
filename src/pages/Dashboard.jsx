@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button, Select, MenuItem, FormControl } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -13,9 +13,15 @@ import { mockData } from '../data/mockData';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [selectedCountry, setSelectedCountry] = useState('ALL');
   
-  // Calcular KPIs desde payoutEvents
-  const payouts = mockData.payoutEvents;
+  // Obtener lista de países únicos
+  const allCountries = Array.from(new Set(mockData.payoutEvents.map(p => p.country))).sort();
+  
+  // Filtrar payouts por país
+  const payouts = selectedCountry === 'ALL' 
+    ? mockData.payoutEvents 
+    : mockData.payoutEvents.filter(p => p.country === selectedCountry);
   const succeeded = payouts.filter(p => p.status === 'SUCCEEDED').length;
   const failed = payouts.filter(p => p.status === 'FAILED').length;
   const totalPayouts = payouts.length;
@@ -46,10 +52,12 @@ const Dashboard = () => {
     });
     
     const countries = Object.keys(providersByCountry);
-    const avgProvidersPerCountry = countries.reduce((sum, country) => 
-      sum + providersByCountry[country].size, 0) / countries.length;
+    const countriesWithMultipleProviders = countries.filter(country => providersByCountry[country].size >= 2).length;
     
-    const diversificationFactor = Math.min((avgProvidersPerCountry / 2) * 20, 20);
+    // Solo otorga puntos si TODOS los países tienen al menos 2 proveedores
+    const diversificationFactor = (countriesWithMultipleProviders === countries.length) ? 20 : 
+      (countriesWithMultipleProviders / countries.length) * 20;
+    
     score += diversificationFactor;
     
     const finalScore = Math.max(score, 0);
@@ -219,13 +227,40 @@ const Dashboard = () => {
   return (
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Panel de Control de Payouts
-        </Typography>
-        <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
-          Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
-        </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+              Panel de Control de Payouts
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
+              Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
+            </Typography>
+          </Box>
+          <FormControl sx={{ minWidth: 200 }}>
+            <Select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              sx={{
+                backgroundColor: '#151B2E',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 1,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#0F7AFF'
+                }
+              }}
+            >
+              <MenuItem value="ALL">Todos los países</MenuItem>
+              {allCountries.map(country => (
+                <MenuItem key={country} value={country}>{country}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Card de Alertas Rápido (eliminada, ahora solo en Topbar) */}

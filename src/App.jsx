@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
+import Providers from './pages/Providers';
 import { mockData } from './data/mockData';
 import usePayoutMetrics from './hooks/usePayoutMetrics';
 import useSecurityScore from './hooks/useSecurityScore';
@@ -121,6 +122,7 @@ const App = () => {
             >
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/providers" element={<Providers />} />
                 <Route path="/alerts" element={<Alerts />} />
               </Routes>
             </Box>
