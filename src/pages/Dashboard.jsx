@@ -7,17 +7,64 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SwapCallsIcon from '@mui/icons-material/SwapCalls';
 import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
+import ErrorIcon from '@mui/icons-material/Error';
+import { mockData } from '../data/mockData';
 
 const Dashboard = () => {
-  // KPIs - Simplificados y enfocados en lo que importa
+  // Calcular KPIs desde payoutEvents
+  const payouts = mockData.payoutEvents;
+  const succeeded = payouts.filter(p => p.status === 'SUCCEEDED').length;
+  const failed = payouts.filter(p => p.status === 'FAILED').length;
+  const totalPayouts = payouts.length;
+  const successRate = ((succeeded / totalPayouts) * 100).toFixed(1);
+  const totalVolume = payouts.reduce((sum, p) => sum + p.amount, 0);
+  const avgLatency = (payouts.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / totalPayouts).toFixed(2);
+
+  // Calcular Security Score basado en múltiples factores
+  const calculateSecurityScore = () => {
+    let score = 100;
+    
+    // 1. Factor: Tasa de éxito (40 puntos máx)
+    const successFactor = (parseFloat(successRate) / 100) * 40;
+    score -= (40 - successFactor);
+    
+    // 2. Factor: Validaciones de riesgo (30 puntos máx)
+    const passedRiskChecks = payouts.filter(p => p.risk_checks && p.risk_checks.length > 0).length;
+    const riskCheckFactor = (passedRiskChecks / totalPayouts) * 30;
+    score -= (30 - riskCheckFactor);
+    
+    // 3. Factor: Latencia (20 puntos máx - penalizar timeouts)
+    const timeouts = payouts.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length;
+    const latencyPenalty = (timeouts / totalPayouts) * 20;
+    score -= latencyPenalty;
+    
+    // 4. Factor: Diversificación de proveedores (10 puntos máx)
+    const providers = Array.from(new Set(payouts.map(p => p.provider))).length;
+    const diversificationFactor = Math.min((providers / 3) * 10, 10);
+    score += diversificationFactor;
+    
+    return Math.max(score, 0);
+  };
+
+  const securityScore = calculateSecurityScore();
+  const getSecurityGrade = (score) => {
+    if (score >= 95) return 'A+';
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B+';
+    if (score >= 70) return 'B';
+    if (score >= 60) return 'C';
+    return 'F';
+  };
+
   const kpis = {
-    totalTransactions: 4567,
-    successRate: 98.7,
-    failedTransactions: 61,
-    totalVolume: '$2.45M',
-    avgRoute: 'Primary (92%)',
-    securityScore: 'A+',
-    avgSpeed: '1.2s'
+    totalPayouts,
+    successRate: parseFloat(successRate),
+    failedPayouts: failed,
+    totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
+    avgLatency: `${avgLatency}s`,
+    providers: Array.from(new Set(payouts.map(p => p.provider))).length,
+    securityScore: securityScore.toFixed(1),
+    securityGrade: getSecurityGrade(securityScore)
   };
 
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
@@ -65,10 +112,10 @@ const Dashboard = () => {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Panel de Control de Pagos
+          Panel de Control de Payouts
         </Typography>
         <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
-          Sistema de Auto-enrutamiento Inteligente • Transformando datos técnicos complejos en términos simples
+          Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
         </Typography>
       </Box>
 
@@ -77,9 +124,9 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={TrendingUpIcon}
-            title="Transacciones"
-            value={kpis.totalTransactions.toLocaleString()}
-            subtitle="Últimas 24h"
+            title="Payouts Procesados"
+            value={kpis.totalPayouts}
+            subtitle="Total en período"
             color="#0F7AFF"
             bgColor="rgba(15, 122, 255, 0.1)"
           />
@@ -89,7 +136,7 @@ const Dashboard = () => {
             icon={CheckCircleIcon}
             title="Tasa de Éxito"
             value={`${kpis.successRate}%`}
-            subtitle="Transacciones aprobadas"
+            subtitle="Payouts completados"
             color="#00D084"
             bgColor="rgba(0, 208, 132, 0.1)"
           />
@@ -99,7 +146,7 @@ const Dashboard = () => {
             icon={AccountBalanceWalletIcon}
             title="Volumen Total"
             value={kpis.totalVolume}
-            subtitle="Monto procesado"
+            subtitle="Monto transferido"
             color="#FFB81C"
             bgColor="rgba(255, 184, 28, 0.1)"
           />
@@ -107,8 +154,8 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={SpeedIcon}
-            title="Velocidad Promedio"
-            value={kpis.avgSpeed}
+            title="Latencia Promedio"
+            value={kpis.avgLatency}
             subtitle="Tiempo de procesamiento"
             color="#FF6B6B"
             bgColor="rgba(255, 107, 107, 0.1)"
@@ -116,38 +163,34 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Información de Enrutamiento */}
+      {/* Información de Proveedores */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <SwapCallsIcon sx={{ color: '#0F7AFF', fontSize: 28 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Estrategia de Enrutamiento
+                Distribución por Proveedor
               </Typography>
             </Box>
             <Box sx={{ space: 2 }}>
-              <Box sx={{ mb: 2.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Ruta Primaria (Visa/MC)</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#00D084' }}>92%</Typography>
-                </Box>
-                <LinearProgress variant="determinate" value={92} sx={{ height: 8, borderRadius: 4 }} />
-              </Box>
-              <Box sx={{ mb: 2.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Ruta Secundaria (Alternativa)</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#FF9500' }}>6%</Typography>
-                </Box>
-                <LinearProgress variant="determinate" value={6} sx={{ height: 8, borderRadius: 4 }} />
-              </Box>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Ruta Tertiary (Backup)</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#A0AEC0' }}>2%</Typography>
-                </Box>
-                <LinearProgress variant="determinate" value={2} sx={{ height: 8, borderRadius: 4 }} />
-              </Box>
+              {Array.from(new Set(payouts.map(p => p.provider))).map((provider, idx) => {
+                const providerPayouts = payouts.filter(p => p.provider === provider);
+                const percentage = ((providerPayouts.length / totalPayouts) * 100).toFixed(0);
+                const providerSuccess = providerPayouts.filter(p => p.status === 'SUCCEEDED').length;
+                const providerSuccessRate = ((providerSuccess / providerPayouts.length) * 100).toFixed(0);
+                return (
+                  <Box key={idx} sx={{ mb: 2.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{provider}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F7AFF' }}>
+                        {percentage}% • {providerSuccessRate}% ✓
+                      </Typography>
+                    </Box>
+                    <LinearProgress variant="determinate" value={parseInt(percentage)} sx={{ height: 8, borderRadius: 4 }} />
+                  </Box>
+                );
+              })}
             </Box>
           </Paper>
         </Grid>
@@ -164,37 +207,52 @@ const Dashboard = () => {
               <Grid item xs={6}>
                 <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                    Score de Seguridad
+                    Score Seguridad
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
-                    A+
+                    {kpis.securityGrade}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                    ({kpis.securityScore}/100)
                   </Typography>
                 </Box>
               </Grid>
               <Grid item xs={6}>
                 <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                    Transacciones Seguras
+                    Payouts Verificados
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
-                    99.8%
+                    {payouts.filter(p => p.risk_checks).length}/{totalPayouts}
                   </Typography>
                 </Box>
               </Grid>
             </Grid>
-            <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2 }}>
-              <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                ✓ Certificación PCI DSS 3.2.1 activa
+            <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '1px solid rgba(15, 122, 255, 0.3)' }}>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1, fontWeight: 600 }}>
+                Factores de Cálculo:
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
+                • Tasa éxito: {successRate}% (40 pts)
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
+                • Validaciones riesgo: {payouts.filter(p => p.risk_checks).length} pasadas (30 pts)
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
+                • Latencia/Timeouts: {payouts.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length} (20 pts)
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block' }}>
+                • Diversificación: {kpis.providers} proveedores (10 pts)
               </Typography>
             </Box>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Transacciones Recientes */}
+      {/* Payouts Recientes */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-          Transacciones Recientes
+          Eventos de Payout Recientes
         </Typography>
         <Box sx={{ 
           overflowX: 'auto',
@@ -222,42 +280,48 @@ const Dashboard = () => {
           <table>
             <thead>
               <tr>
+                <th>Payout ID</th>
                 <th>Comercio</th>
                 <th>Monto</th>
                 <th>Proveedor</th>
-                <th>Ruta</th>
+                <th>País</th>
                 <th>Estado</th>
+                <th>Detalles</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td><Typography variant="body2">TechStore Pro</Typography></td>
-                <td><Typography variant="body2" sx={{ fontWeight: 600 }}>$542.50</Typography></td>
-                <td><Typography variant="body2">Visa</Typography></td>
-                <td><Chip label="Primaria" size="small" sx={{ backgroundColor: 'rgba(0, 208, 132, 0.2)', color: '#00D084' }} /></td>
-                <td><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} /><Typography variant="body2">Aprobado</Typography></Box></td>
-              </tr>
-              <tr>
-                <td><Typography variant="body2">FastShip Inc</Typography></td>
-                <td><Typography variant="body2" sx={{ fontWeight: 600 }}>$1,234.00</Typography></td>
-                <td><Typography variant="body2">Mastercard</Typography></td>
-                <td><Chip label="Primaria" size="small" sx={{ backgroundColor: 'rgba(0, 208, 132, 0.2)', color: '#00D084' }} /></td>
-                <td><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} /><Typography variant="body2">Aprobado</Typography></Box></td>
-              </tr>
-              <tr>
-                <td><Typography variant="body2">Global Retail</Typography></td>
-                <td><Typography variant="body2" sx={{ fontWeight: 600 }}>$89.99</Typography></td>
-                <td><Typography variant="body2">Amex</Typography></td>
-                <td><Chip label="Secundaria" size="small" sx={{ backgroundColor: 'rgba(255, 184, 28, 0.2)', color: '#FFB81C' }} /></td>
-                <td><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} /><Typography variant="body2">Aprobado</Typography></Box></td>
-              </tr>
-              <tr>
-                <td><Typography variant="body2">Digital Market</Typography></td>
-                <td><Typography variant="body2" sx={{ fontWeight: 600 }}>$45.00</Typography></td>
-                <td><Typography variant="body2">Visa</Typography></td>
-                <td><Chip label="Primaria" size="small" sx={{ backgroundColor: 'rgba(0, 208, 132, 0.2)', color: '#00D084' }} /></td>
-                <td><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><WarningIcon sx={{ fontSize: 18, color: '#FF9500' }} /><Typography variant="body2">Revisión</Typography></Box></td>
-              </tr>
+              {payouts.slice(0, 6).map((payout, idx) => (
+                <tr key={idx}>
+                  <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payout.payout_id}</Typography></td>
+                  <td><Typography variant="body2">{payout.merchant_id}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>${payout.amount.toFixed(2)}</Typography></td>
+                  <td><Typography variant="body2">{payout.provider}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>{payout.country}</Typography></td>
+                  <td>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {payout.status === 'SUCCEEDED' ? (
+                        <>
+                          <CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} />
+                          <Typography variant="body2">Exitoso</Typography>
+                        </>
+                      ) : (
+                        <>
+                          <ErrorIcon sx={{ fontSize: 18, color: '#FF3B30' }} />
+                          <Typography variant="body2">Fallido</Typography>
+                        </>
+                      )}
+                    </Box>
+                  </td>
+                  <td>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                      {payout.status === 'SUCCEEDED' 
+                        ? `${payout.processing_time_sec || Math.round(payout.latency_ms / 1000)}s`
+                        : payout.error_code
+                      }
+                    </Typography>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </Box>
