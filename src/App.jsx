@@ -141,6 +141,30 @@ const App = () => {
                 p: 3,
               }}
             >
+              <div style={{ padding: 20 }}>
+                {alerts.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    {alerts.map((alert, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: "#ffe5e5",
+                          border: "1px solid #ff9999",
+                          padding: 10,
+                          marginBottom: 8,
+                          borderRadius: 4
+                        }}
+                      >
+                        <strong>🚨 {alert.level}</strong>
+                        <div>{alert.message}</div>
+                        <small>
+                          {new Date(alert.timestamp).toLocaleTimeString()}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/alerts" element={<Alerts />} />
@@ -149,9 +173,6 @@ const App = () => {
           </Box>
         </Box>
       </Router>
-      {
-        console.log(alerts)
-      }
     </ThemeProvider>
   );
 };
