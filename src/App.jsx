@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { Box, CssBaseline, ThemeProvider, createTheme, Toolbar } from '@mui/material';
+import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -104,21 +104,22 @@ const App = () => {
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <Router>
-        <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0A0E27' }}>
+        <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0A0E27', width: '100%' }}>
           <Sidebar drawerWidth={drawerWidth} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
             <Topbar drawerWidth={drawerWidth} alerts={criticalAlerts} />
             <Box
               component="main"
               sx={{ 
                 flexGrow: 1, 
-                overflow: 'auto',
+                overflowY: 'auto',
+                overflowX: 'hidden',
                 backgroundColor: '#0A0E27',
                 p: 3,
               }}
             >
               <Routes>
-                <Route path="/" element={<Dashboard hideQuickAlertsCard />} />
+                <Route path="/" element={<Dashboard />} />
                 <Route path="/alerts" element={<Alerts />} />
               </Routes>
             </Box>

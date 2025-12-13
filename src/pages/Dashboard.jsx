@@ -314,9 +314,9 @@ const Dashboard = () => {
                 Estado de Seguridad
               </Typography>
             </Box>
-            <Grid container spacing={2} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 4, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 4 }}>
+            <Grid container spacing={2} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: { xs: 'column', md: 'row' } }}>
+              <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: 'auto' } }}>
+                <Box sx={{ p: 4, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-around', alignItems: 'center', gap: 4 }}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
                       Score Seguridad
@@ -328,7 +328,7 @@ const Dashboard = () => {
                       ({kpis.securityScore}/100)
                     </Typography>
                   </Box>
-                  <Box sx={{ width: '1px', height: '80px', backgroundColor: 'rgba(0, 208, 132, 0.3)' }} />
+                  <Box sx={{ width: { xs: '80px', md: '1px' }, height: { xs: '1px', md: '80px' }, backgroundColor: 'rgba(0, 208, 132, 0.3)' }} />
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
                       Payouts Verificados
@@ -342,7 +342,7 @@ const Dashboard = () => {
                   </Box>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: 'auto' } }}>
                 <Box sx={{ p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '1px solid rgba(15, 122, 255, 0.3)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1, fontWeight: 600 }}>
                     Aporte al Score:
