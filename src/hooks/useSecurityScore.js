@@ -12,7 +12,7 @@ export const useSecurityScore = (payoutEvents, successRate) => {
     let score = 100;
     const totalPayouts = payoutEvents.length;
 
-    if (totalPayouts === 0) return { score: 0, grade: 'F' };
+    if (totalPayouts === 0) return { score: 0, grade: 'F', factors: { success: 0, risk: 0, latency: 0, diversification: 0 } };
 
     // Factor 1: Tasa de éxito (40 puntos máx)
     const successFactor = (parseFloat(successRate) / 100) * SECURITY_SCORE_WEIGHTS.SUCCESS_RATE;
@@ -33,19 +33,27 @@ export const useSecurityScore = (payoutEvents, successRate) => {
     const diversificationFactor = Math.min((providers / 3) * SECURITY_SCORE_WEIGHTS.DIVERSIFICATION, SECURITY_SCORE_WEIGHTS.DIVERSIFICATION);
     score += diversificationFactor;
 
-    score = Math.max(score, 0);
-    score = Math.min(score, 100);
+    const finalScore = Math.max(Math.min(score, 100), 0);
 
     // Determinar grade
     let grade = 'F';
     for (const [gradeKey, range] of Object.entries(SECURITY_GRADES)) {
-      if (score >= range.min && score <= range.max) {
+      if (finalScore >= range.min && finalScore <= range.max) {
         grade = gradeKey;
         break;
       }
     }
 
-    return { score: score.toFixed(1), grade };
+    return { 
+      score: finalScore.toFixed(1), 
+      grade,
+      factors: {
+        success: successFactor.toFixed(1),
+        risk: riskCheckFactor.toFixed(1),
+        latency: (SECURITY_SCORE_WEIGHTS.LATENCY - latencyPenalty).toFixed(1),
+        diversification: diversificationFactor.toFixed(1)
+      }
+    };
   }, [payoutEvents, successRate]);
 
   return score;

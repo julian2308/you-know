@@ -27,29 +27,35 @@ const Dashboard = () => {
   const calculateSecurityScore = () => {
     let score = 100;
     
-    // 1. Factor: Tasa de éxito (40 puntos máx)
-    const successFactor = (parseFloat(successRate) / 100) * 40;
-    score -= (40 - successFactor);
+    // 1. Factor: Tasa de éxito (60 puntos máx)
+    const successFactor = (parseFloat(successRate) / 100) * 60;
+    score -= (60 - successFactor);
     
-    // 2. Factor: Validaciones de riesgo (30 puntos máx)
-    const passedRiskChecks = payouts.filter(p => p.risk_checks && p.risk_checks.length > 0).length;
-    const riskCheckFactor = (passedRiskChecks / totalPayouts) * 30;
-    score -= (30 - riskCheckFactor);
-    
-    // 3. Factor: Latencia (20 puntos máx - penalizar timeouts)
+    // 2. Factor: Latencia (20 puntos máx - penalizar timeouts)
     const timeouts = payouts.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length;
     const latencyPenalty = (timeouts / totalPayouts) * 20;
     score -= latencyPenalty;
     
-    // 4. Factor: Diversificación de proveedores (10 puntos máx)
+    // 3. Factor: Diversificación de proveedores (20 puntos máx)
     const providers = Array.from(new Set(payouts.map(p => p.provider))).length;
-    const diversificationFactor = Math.min((providers / 3) * 10, 10);
+    const diversificationFactor = Math.min((providers / 3) * 20, 20);
     score += diversificationFactor;
     
-    return Math.max(score, 0);
+    const finalScore = Math.max(score, 0);
+    
+    return {
+      score: finalScore,
+      factors: {
+        success: successFactor.toFixed(1),
+        latency: (20 - latencyPenalty).toFixed(1),
+        diversification: diversificationFactor.toFixed(1)
+      }
+    };
   };
 
-  const securityScore = calculateSecurityScore();
+  const securityScoreData = calculateSecurityScore();
+  const securityScore = securityScoreData.score;
+  const securityFactors = securityScoreData.factors;
   const getSecurityGrade = (score) => {
     if (score >= 95) return 'A+';
     if (score >= 90) return 'A';
@@ -162,6 +168,7 @@ const Dashboard = () => {
       p: 3, 
       display: 'flex', 
       flexDirection: 'column',
+      alignItems: 'center',
       background: bgColor,
       border: `1px solid ${color}33`,
       transition: 'all 0.3s ease',
@@ -170,10 +177,7 @@ const Dashboard = () => {
         boxShadow: `0 12px 24px ${color}20`,
       }
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {title}
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
         <Box sx={{ 
           p: 1, 
           borderRadius: '8px', 
@@ -181,16 +185,20 @@ const Dashboard = () => {
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          mr: 1
         }}>
-          <IconComponent sx={{ fontSize: 20 }} />
+          <IconComponent sx={{ fontSize: 22 }} />
         </Box>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {title}
+        </Typography>
       </Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
         {value}
       </Typography>
       {subtitle && (
-        <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+        <Typography variant="caption" sx={{ color: '#A0AEC0', textAlign: 'center', display: 'block' }}>
           {subtitle}
         </Typography>
       )}
@@ -198,9 +206,9 @@ const Dashboard = () => {
   );
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Panel de Control de Payouts
         </Typography>
@@ -212,7 +220,7 @@ const Dashboard = () => {
       {/* Card de Alertas Rápido (eliminada, ahora solo en Topbar) */}
 
       {/* KPIs Grid */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' } }}>
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={TrendingUpIcon}
@@ -256,13 +264,13 @@ const Dashboard = () => {
       </Grid>
 
       {/* Información de Proveedores */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <SwapCallsIcon sx={{ color: '#0F7AFF', fontSize: 28 }} />
+      <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '40% 60%' } }}>
+        <Grid item xs={12} md={3}>
+          <Paper sx={{ p: 3, height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.2, mb: 3 }}>
+              <SwapCallsIcon sx={{ color: '#0F7AFF', fontSize: 28, mr: 1 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Distribución por Proveedor
+                Proveedores
               </Typography>
             </Box>
             <Box sx={{ space: 2 }}>
@@ -287,56 +295,59 @@ const Dashboard = () => {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <SecurityIcon sx={{ color: '#00D084', fontSize: 28 }} />
+        <Grid item xs={12} md={9}>
+          <Paper sx={{ p: 3, height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.2, mb: 3 }}>
+              <SecurityIcon sx={{ color: '#00D084', fontSize: 28, mr: 1 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Estado de Seguridad
               </Typography>
             </Box>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2 }}>
-                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                    Score Seguridad
-                  </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
-                    {kpis.securityGrade}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                    ({kpis.securityScore}/100)
-                  </Typography>
+            <Grid container spacing={2} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Grid item xs={12} md={6}>
+                <Box sx={{ p: 4, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 4 }}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
+                      Score Seguridad
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
+                      {kpis.securityGrade}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
+                      ({kpis.securityScore}/100)
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '1px', height: '80px', backgroundColor: 'rgba(0, 208, 132, 0.3)' }} />
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
+                      Payouts Verificados
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
+                      {succeeded}/{totalPayouts}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                      Transacciones exitosas
+                    </Typography>
+                  </Box>
                 </Box>
               </Grid>
-              <Grid item xs={6}>
-                <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2 }}>
-                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                    Payouts Verificados
+              <Grid item xs={12} md={6}>
+                <Box sx={{ p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '1px solid rgba(15, 122, 255, 0.3)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1, fontWeight: 600 }}>
+                    Aporte al Score:
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
-                    {payouts.filter(p => p.risk_checks).length}/{totalPayouts}
+                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
+                    • Tasa éxito: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.success}/60</span> pts
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
+                    • Latencia/Timeouts: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.latency}/20</span> pts
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block' }}>
+                    • Diversificación: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.diversification}/20</span> pts
                   </Typography>
                 </Box>
               </Grid>
             </Grid>
-            <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '1px solid rgba(15, 122, 255, 0.3)' }}>
-              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1, fontWeight: 600 }}>
-                Factores de Cálculo:
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
-                • Tasa éxito: {successRate}% (40 pts)
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
-                • Validaciones riesgo: {payouts.filter(p => p.risk_checks).length} pasadas (30 pts)
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
-                • Latencia/Timeouts: {payouts.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length} (20 pts)
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block' }}>
-                • Diversificación: {kpis.providers} proveedores (10 pts)
-              </Typography>
-            </Box>
           </Paper>
         </Grid>
       </Grid>
@@ -382,7 +393,7 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {payouts.slice(0, 6).map((payout, idx) => (
+              {payouts.slice(0, 10).map((payout, idx) => (
                 <tr key={idx}>
                   <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payout.payout_id}</Typography></td>
                   <td><Typography variant="body2">{payout.merchant_id}</Typography></td>
