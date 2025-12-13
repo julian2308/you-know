@@ -1,13 +1,50 @@
-# React + Vite
+# You Know - Dashboard Inteligente de Pagos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🎯 Concepto
 
-Currently, two official plugins are available:
+**You Know** es un dashboard profesional diseñado para empresas de procesamiento de pagos (como Yuno) que implementan **sistemas de auto-enrutamiento inteligente**. Transforma datos técnicos complejos en términos simples y comprensibles para usuarios de negocio.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Misión
+Simplificar la complejidad del procesamiento de pagos internacionales y el auto-enrutamiento de transacciones, permitiendo que los usuarios entiendan:
+- **Por qué** se enruta cada pago a través de una ruta específica
+- **Cómo** optimiza automáticamente la tasa de éxito
+- **Qué** hacer cuando algo no funciona
 
-## React Compiler
+## 🚀 Características Principales
+
+### 1. **Sistema de Auto-Enrutamiento Inteligente**
+- **Ruta Primaria (92%)**: Visa/Mastercard - Proveedores principales de alto volumen
+- **Ruta Secundaria (6%)**: Proveedores alternativos para casos especiales o fallos
+- **Ruta Terciaria (2%)**: Backup de emergencia para máxima confiabilidad
+
+El sistema automáticamente selecciona la mejor ruta en tiempo real basado en:
+- Tasa de éxito histórica del proveedor
+- Disponibilidad de la red
+- Riesgo de la transacción
+- Ubicación geográfica
+
+### 2. **KPIs Simplificados**
+- **Transacciones**: Total de operaciones procesadas
+- **Tasa de Éxito**: Porcentaje de transacciones aprobadas
+- **Volumen Total**: Dinero procesado en términos reales
+- **Velocidad Promedio**: Tiempo que tarda el sistema
+
+### 3. **Estrategia de Enrutamiento Visualizada**
+Barra de progreso que muestra intuitivamente cómo se distribuyen las transacciones entre rutas.
+
+### 4. **Estado de Seguridad**
+- Score de Seguridad en formato simple (A+, A, B, etc.)
+- Certificaciones activas (PCI DSS 3.2.1)
+- Transacciones seguras certificadas
+
+## 📊 Tech Stack
+
+- **Frontend**: React 19.2 + Vite
+- **UI Library**: Material-UI 7.3
+- **Charts**: Recharts 3.5 (próximamente integrados)
+- **Routing**: React Router 7.10
+- **Icons**: Material-UI Icons
+- **Theme**: Sistema de temas personalizado
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 

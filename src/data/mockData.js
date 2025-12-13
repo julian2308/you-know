@@ -1,51 +1,228 @@
-
-export const mockData = [
-  {
-    "timestamp": "2024-07-01T10:00:00Z",
-    "merchant": "SuperMarket",
-    "provider": "Visa",
-    "country": "USA",
-    "status": "successful",
-    "errorType": null
-  },
-  {
-    "timestamp": "2024-07-01T10:05:00Z",
-    "merchant": "OnlineStore",
-    "provider": "Mastercard",
-    "country": "USA",
-    "status": "successful",
-    "errorType": null
-  },
-  {
-    "timestamp": "2024-07-01T10:10:00Z",
-    "merchant": "GasStation",
-    "provider": "Amex",
-    "country": "CAN",
-    "status": "failed",
-    "errorType": "insufficient_funds"
-  },
-  {
-    "timestamp": "2024-07-02T11:00:00Z",
-    "merchant": "SuperMarket",
-    "provider": "Visa",
-    "country": "USA",
-    "status": "successful",
-    "errorType": null
-  },
+export const mockData = {
+  transactions: [
     {
-    "timestamp": "2024-07-02T11:05:00Z",
-    "merchant": "OnlineStore",
-    "provider": "PayPal",
-    "country": "GBR",
-    "status": "successful",
-    "errorType": null
+      id: 1,
+      merchant: 'TechStore Pro',
+      amount: 542.50,
+      currency: 'USD',
+      date: '2024-01-15 14:32:10',
+      provider: 'Visa',
+      status: 'completed',
+      country: 'USA',
+      errorType: null,
+      processingTime: 0.8,
+      route: 'Primary',
+      bin: '451111',
+      riskScore: 'Low'
+    },
+    {
+      id: 2,
+      merchant: 'FastShip Inc',
+      amount: 1234.00,
+      currency: 'USD',
+      date: '2024-01-15 14:31:45',
+      provider: 'Mastercard',
+      status: 'completed',
+      country: 'Canada',
+      errorType: null,
+      processingTime: 0.9,
+      route: 'Primary',
+      bin: '552819',
+      riskScore: 'Low'
+    },
+    {
+      id: 3,
+      merchant: 'Global Retail',
+      amount: 89.99,
+      currency: 'USD',
+      date: '2024-01-15 14:30:12',
+      provider: 'Amex',
+      status: 'completed',
+      country: 'Mexico',
+      errorType: null,
+      processingTime: 1.2,
+      route: 'Secondary',
+      bin: '373456',
+      riskScore: 'Medium'
+    },
+    {
+      id: 4,
+      merchant: 'Digital Market',
+      amount: 45.00,
+      currency: 'USD',
+      date: '2024-01-15 14:29:33',
+      provider: 'Visa',
+      status: 'pending',
+      country: 'USA',
+      errorType: 'Under Review - 3DS Challenge',
+      processingTime: 2.1,
+      route: 'Primary',
+      bin: '411111',
+      riskScore: 'Medium'
+    },
+    {
+      id: 5,
+      merchant: 'CloudServices Ltd',
+      amount: 3450.00,
+      currency: 'USD',
+      date: '2024-01-15 14:28:05',
+      provider: 'Mastercard',
+      status: 'completed',
+      country: 'UK',
+      errorType: null,
+      processingTime: 0.7,
+      route: 'Primary',
+      bin: '551234',
+      riskScore: 'Low'
+    },
+    {
+      id: 6,
+      merchant: 'Fashion Hub',
+      amount: 156.75,
+      currency: 'USD',
+      date: '2024-01-15 14:27:22',
+      provider: 'Visa',
+      status: 'failed',
+      country: 'Brazil',
+      errorType: 'Declined by Issuer - Insufficient Funds',
+      processingTime: 1.4,
+      route: 'Primary',
+      bin: '424242',
+      riskScore: 'High'
+    },
+    {
+      id: 7,
+      merchant: 'Gaming Central',
+      amount: 25.50,
+      currency: 'USD',
+      date: '2024-01-15 14:26:44',
+      provider: 'Amex',
+      status: 'completed',
+      country: 'USA',
+      errorType: null,
+      processingTime: 1.1,
+      route: 'Primary',
+      bin: '370082',
+      riskScore: 'Low'
+    },
+    {
+      id: 8,
+      merchant: 'StreamMusic Pro',
+      amount: 12.99,
+      currency: 'USD',
+      date: '2024-01-15 14:25:10',
+      provider: 'Visa',
+      status: 'completed',
+      country: 'Spain',
+      errorType: null,
+      processingTime: 0.6,
+      route: 'Tertiary',
+      bin: '411111',
+      riskScore: 'Low'
+    },
+    {
+      id: 9,
+      merchant: 'Enterprise Solutions',
+      amount: 5670.00,
+      currency: 'USD',
+      date: '2024-01-15 14:24:33',
+      provider: 'Mastercard',
+      status: 'completed',
+      country: 'Germany',
+      errorType: null,
+      processingTime: 0.8,
+      route: 'Primary',
+      bin: '551345',
+      riskScore: 'Low'
+    },
+    {
+      id: 10,
+      merchant: 'LocalShop Store',
+      amount: 78.45,
+      currency: 'USD',
+      date: '2024-01-15 14:23:55',
+      provider: 'Visa',
+      status: 'failed',
+      country: 'Argentina',
+      errorType: 'Network Error - Retry with Secondary Route',
+      processingTime: 2.8,
+      route: 'Secondary',
+      bin: '451111',
+      riskScore: 'Medium'
+    },
+    {
+      id: 11,
+      merchant: 'TechStore Pro',
+      amount: 299.00,
+      currency: 'USD',
+      date: '2024-01-15 14:22:11',
+      provider: 'Visa',
+      status: 'completed',
+      country: 'USA',
+      errorType: null,
+      processingTime: 0.75,
+      route: 'Primary',
+      bin: '451111',
+      riskScore: 'Low'
+    },
+    {
+      id: 12,
+      merchant: 'Online Academy',
+      amount: 199.99,
+      currency: 'USD',
+      date: '2024-01-15 14:21:02',
+      provider: 'Paypal',
+      status: 'completed',
+      country: 'USA',
+      errorType: null,
+      processingTime: 1.5,
+      route: 'Wallet',
+      bin: 'N/A',
+      riskScore: 'Low'
+    }
+  ],
+  
+  routingMetrics: {
+    primaryRoute: { success: 92, volume: '1.8M' },
+    secondaryRoute: { success: 6, volume: '156K' },
+    tertiaryRoute: { success: 2, volume: '48K' }
   },
-  {
-    "timestamp": "2024-07-03T12:10:00Z",
-    "merchant": "CoffeeShop",
-    "provider": "Visa",
-    "country": "USA",
-    "status": "failed",
-    "errorType": "card_declined"
-  }
-];
+
+  statusDistribution: {
+    completed: 10,
+    pending: 1,
+    failed: 1
+  },
+
+  hourlyData: [
+    { time: '00:00', transactions: 45, success: 44, failed: 1, volume: 12450 },
+    { time: '02:00', transactions: 52, success: 51, failed: 1, volume: 18900 },
+    { time: '04:00', transactions: 38, success: 37, failed: 1, volume: 9800 },
+    { time: '06:00', transactions: 156, success: 154, failed: 2, volume: 45600 },
+    { time: '08:00', transactions: 324, success: 320, failed: 4, volume: 92100 },
+    { time: '10:00', transactions: 467, success: 460, failed: 7, volume: 156700 },
+    { time: '12:00', transactions: 523, success: 516, failed: 7, volume: 189200 },
+    { time: '14:00', transactions: 445, success: 438, failed: 7, volume: 167800 },
+    { time: '16:00', transactions: 389, success: 383, failed: 6, volume: 142300 },
+    { time: '18:00', transactions: 412, success: 406, failed: 6, volume: 165400 },
+    { time: '20:00', transactions: 298, success: 293, failed: 5, volume: 118600 },
+    { time: '22:00', transactions: 189, success: 186, failed: 3, volume: 78200 }
+  ],
+
+  providerMetrics: [
+    { name: 'Visa', volume: 1245000, success: 98.5, transactions: 3450 },
+    { name: 'Mastercard', volume: 856000, success: 98.8, transactions: 2410 },
+    { name: 'Amex', volume: 234000, success: 97.2, transactions: 678 },
+    { name: 'PayPal', volume: 89000, success: 99.1, transactions: 245 },
+    { name: 'Diners', volume: 45000, success: 96.8, transactions: 125 }
+  ],
+
+  errorTypes: [
+    { type: 'Declined by Issuer', count: 18 },
+    { type: 'Insufficient Funds', count: 12 },
+    { type: 'Network Error', count: 8 },
+    { type: '3DS Challenge', count: 6 },
+    { type: 'Card Expired', count: 4 },
+    { type: 'CVV Mismatch', count: 2 }
+  ]
+};
