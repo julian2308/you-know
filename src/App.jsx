@@ -4,6 +4,7 @@ import { Box, CssBaseline, ThemeProvider, createTheme, Toolbar } from '@mui/mate
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
+import Alerts from './pages/Alerts';
 
 // Tema profesional para You Know - Dashboard de Pagos
 const darkTheme = createTheme({
@@ -107,6 +108,7 @@ const App = () => {
             >
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/alerts" element={<Alerts />} />
               </Routes>
             </Box>
           </Box>

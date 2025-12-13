@@ -1,16 +1,19 @@
 import React from 'react';
-import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon } from '@mui/material';
+import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SwapCallsIcon from '@mui/icons-material/SwapCalls';
 import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
-import ErrorIcon from '@mui/icons-material/Error';
 import { mockData } from '../data/mockData';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   // Calcular KPIs desde payoutEvents
   const payouts = mockData.payoutEvents;
   const succeeded = payouts.filter(p => p.status === 'SUCCEEDED').length;
@@ -56,6 +59,92 @@ const Dashboard = () => {
     return 'F';
   };
 
+  // Generar alertas inteligentes por proveedor
+  const generateAlerts = () => {
+    const alerts = [];
+    const providerErrors = {};
+
+    // Agrupar errores por proveedor
+    payouts.forEach(payout => {
+      if (payout.status === 'FAILED') {
+        if (!providerErrors[payout.provider]) {
+          providerErrors[payout.provider] = [];
+        }
+        providerErrors[payout.provider].push(payout);
+      }
+    });
+
+    // Crear alertas basadas en errores
+    Object.entries(providerErrors).forEach(([provider, failedPayouts]) => {
+      const failureRate = (failedPayouts.length / payouts.filter(p => p.provider === provider).length) * 100;
+      const totalImpact = failedPayouts.reduce((sum, p) => sum + p.amount, 0);
+
+      // Determinar severidad basada en el score de seguridad y tasa de fallo
+      let severity = 'info';
+      if (securityScore < 60 || failureRate > 50) severity = 'critical';
+      else if (failureRate > 25 || securityScore < 80) severity = 'warning';
+
+      // Acciones recomendadas por tipo de error
+      const actionsByError = {
+        'PROVIDER_TIMEOUT': [
+          'Aumentar timeout de 30s a 60s en configuración',
+          'Verificar conectividad con proveedor',
+          'Usar ruta alternativa temporalmente',
+          'Contactar soporte del proveedor'
+        ],
+        'INSUFFICIENT_FUNDS': [
+          'Recargar balance de cuenta del proveedor',
+          'Configurar fallback a proveedor alternativo',
+          'Revisar límites de payout establecidos'
+        ],
+        'INVALID_ACCOUNT': [
+          'Verificar datos de cuenta del destinatario',
+          'Contactar comerciante para validar datos',
+          'Revisar formato de cuenta requerido'
+        ]
+      };
+
+      const errorType = failedPayouts[0].error_code;
+      const actions = actionsByError[errorType] || [
+        'Revisar logs de error detallados',
+        'Contactar soporte técnico'
+      ];
+
+      alerts.push({
+        id: `${provider}-${Date.now()}`,
+        provider,
+        severity,
+        errorCode: errorType,
+        errorMessage: failedPayouts[0].error_message,
+        failureCount: failedPayouts.length,
+        failureRate: failureRate.toFixed(1),
+        totalImpact,
+        actions,
+        affectedPayouts: failedPayouts
+      });
+    });
+
+    return alerts.sort((a, b) => {
+      const severityOrder = { critical: 0, warning: 1, info: 2 };
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    });
+  };
+
+  const alerts = generateAlerts();
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'critical':
+        return { bg: 'rgba(255, 59, 48, 0.1)', border: '#FF3B30', icon: '#FF3B30', text: 'CRÍTICO' };
+      case 'warning':
+        return { bg: 'rgba(255, 149, 0, 0.1)', border: '#FF9500', icon: '#FF9500', text: 'ADVERTENCIA' };
+      case 'info':
+        return { bg: 'rgba(15, 122, 255, 0.1)', border: '#0F7AFF', icon: '#0F7AFF', text: 'INFO' };
+      default:
+        return { bg: 'rgba(160, 174, 192, 0.1)', border: '#A0AEC0', icon: '#A0AEC0', text: 'INFO' };
+    }
+  };
+
   const kpis = {
     totalPayouts,
     successRate: parseFloat(successRate),
@@ -64,7 +153,8 @@ const Dashboard = () => {
     avgLatency: `${avgLatency}s`,
     providers: Array.from(new Set(payouts.map(p => p.provider))).length,
     securityScore: securityScore.toFixed(1),
-    securityGrade: getSecurityGrade(securityScore)
+    securityGrade: getSecurityGrade(securityScore),
+    alertCount: alerts.filter(a => a.severity === 'critical').length
   };
 
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
@@ -108,7 +198,7 @@ const Dashboard = () => {
   );
 
   return (
-    <Box>
+    <Box sx={{ width: '100%' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -118,6 +208,38 @@ const Dashboard = () => {
           Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
         </Typography>
       </Box>
+
+      {/* Card de Alertas Rápido */}
+      {alerts.length > 0 && (
+        <Paper sx={{ p: 3, mb: 4, background: 'linear-gradient(135deg, rgba(15, 122, 255, 0.05) 0%, rgba(255, 59, 48, 0.05) 100%)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <WarningIcon sx={{ color: '#FF9500', fontSize: 28 }} />
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Tienes {alerts.length} alerta(s) pendiente(s)
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                  {alerts.filter(a => a.severity === 'critical').length} críticas • Ve al Centro de Alertas para más detalles
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              onClick={() => navigate('/alerts')}
+              variant="contained"
+              sx={{
+                background: '#FF9500',
+                color: '#fff',
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': { opacity: 0.8 }
+              }}
+            >
+              Ir a Alertas
+            </Button>
+          </Box>
+        </Paper>
+      )}
 
       {/* KPIs Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

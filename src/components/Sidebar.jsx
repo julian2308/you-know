@@ -1,6 +1,6 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Toolbar, Box } from '@mui/material';
-import { Home, BarChart, Payment } from '@mui/icons-material';
+import { Home, Notifications } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
 const drawerWidth = 240;
@@ -24,17 +24,11 @@ const Sidebar = () => {
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItem>
-          <ListItem button component={Link} to="/reports">
+          <ListItem button component={Link} to="/alerts">
             <ListItemIcon>
-              <BarChart />
+              <Notifications />
             </ListItemIcon>
-            <ListItemText primary="Reportes" />
-          </ListItem>
-          <ListItem button component={Link} to="/payments">
-            <ListItemIcon>
-              <Payment />
-            </ListItemIcon>
-            <ListItemText primary="Pagos" />
+            <ListItemText primary="Alertas" />
           </ListItem>
         </List>
       </Box>

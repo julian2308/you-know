@@ -5,12 +5,12 @@ import { Menu as MenuIcon, Notifications } from '@mui/icons-material';
 const Topbar = ({ drawerWidth }) => {
   return (
     <AppBar
-      position="fixed"
+      position="static"
       sx={{ 
-        width: `calc(100% - ${drawerWidth}px)`,
-        ml: `${drawerWidth}px`,
-        backgroundColor: '#ffffff',
-        color: '#000000'
+        backgroundColor: 'rgba(21, 27, 46, 0.8)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        color: '#FFFFFF'
       }}
     >
       <Toolbar>
@@ -22,10 +22,10 @@ const Topbar = ({ drawerWidth }) => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Dashboard de Pagos
+        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: '#FFFFFF', fontWeight: 700 }}>
+          You Know
         </Typography>
-        <IconButton color="inherit">
+        <IconButton sx={{ color: '#A0AEC0' }}>
           <Notifications />
         </IconButton>
       </Toolbar>

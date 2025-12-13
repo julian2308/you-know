@@ -33,11 +33,23 @@ El sistema automáticamente selecciona la mejor ruta en tiempo real basado en:
 Barra de progreso que muestra intuitivamente cómo se distribuyen las transacciones entre rutas.
 
 ### 4. **Estado de Seguridad**
-- Score de Seguridad en formato simple (A+, A, B, etc.)
+- Score de Seguridad calculado dinámicamente (A+, A, B, etc.)
 - Certificaciones activas (PCI DSS 3.2.1)
-- Transacciones seguras certificadas
+- Cálculo basado en: tasa éxito, validaciones de riesgo, latencia, diversificación
 
-## 📊 Tech Stack
+### 5. **Panel de Alertas Inteligentes**
+- Alertas automáticas por proveedor
+- Severidad dinámica (Crítico, Advertencia, Info)
+- Acciones recomendadas específicas por tipo de error
+- Expandible para ver detalles y payouts afectados
+- Se actualiza basado en el security score
+
+## � Páginas
+
+1. **Dashboard** - Vista general con KPIs y estado del sistema
+2. **Centro de Alertas** - Monitoreo centralizado de problemas por proveedor
+
+## �📊 Tech Stack
 
 - **Frontend**: React 19.2 + Vite
 - **UI Library**: Material-UI 7.3
