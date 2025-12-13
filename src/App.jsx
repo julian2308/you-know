@@ -92,7 +92,8 @@ const darkTheme = createTheme({
 
 
 const App = () => {
-  const drawerWidth = 240;
+  const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
+  
   // Obtener métricas y alertas críticas
   const payouts = mockData.payoutEvents;
   const metrics = usePayoutMetrics(payouts);
@@ -104,10 +105,10 @@ const App = () => {
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <Router>
-        <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0A0E27', width: '100%' }}>
-          <Sidebar drawerWidth={drawerWidth} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
-            <Topbar drawerWidth={drawerWidth} alerts={criticalAlerts} />
+        <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0A0E27', width: '100%', flexDirection: { xs: 'column', md: 'row' } }}>
+          <Sidebar mobileOpen={mobileDrawerOpen} onMobileClose={() => setMobileDrawerOpen(false)} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, width: { xs: '100%', md: 'auto' } }}>
+            <Topbar alerts={criticalAlerts} onMenuClick={() => setMobileDrawerOpen(!mobileDrawerOpen)} />
             <Box
               component="main"
               sx={{ 

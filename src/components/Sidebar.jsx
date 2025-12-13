@@ -1,12 +1,51 @@
 import React from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, Toolbar, Box } from '@mui/material';
+import { Drawer, List, ListItem, ListItemIcon, ListItemText, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Home, Notifications } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
-const drawerWidth = 240;
+const drawerWidth = 80;
 
+const Sidebar = ({ mobileOpen, onMobileClose }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-const Sidebar = () => {
+  const drawerContent = (
+    <Box sx={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 2 }}>
+      <List sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+        <ListItem component={Link} to="/" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer' }}>
+          <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
+            <Home sx={{ fontSize: 28, color: '#0F7AFF' }} />
+          </ListItemIcon>
+        </ListItem>
+        <ListItem component={Link} to="/alerts" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer' }}>
+          <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
+            <Notifications sx={{ fontSize: 28, color: '#0F7AFF' }} />
+          </ListItemIcon>
+        </ListItem>
+      </List>
+    </Box>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        sx={{
+          [`& .MuiDrawer-paper`]: {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            background: '#151B2E',
+            borderRight: '1px solid rgba(255,255,255,0.08)'
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    );
+  }
+
   return (
     <Drawer
       variant="permanent"
@@ -21,40 +60,7 @@ const Sidebar = () => {
         },
       }}
     >
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 72,
-        borderBottom: '1px solid rgba(255,255,255,0.08)'
-      }}>
-        <span style={{
-          color: '#0F7AFF',
-          fontWeight: 800,
-          fontSize: 26,
-          letterSpacing: 1,
-          fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
-        }}>
-          You Know
-        </span>
-      </Box>
-      <Box sx={{ overflow: 'auto', flex: 1 }}>
-        <List>
-          <ListItem button component={Link} to="/">
-            <ListItemIcon>
-              <Home />
-            </ListItemIcon>
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem button component={Link} to="/alerts">
-            <ListItemIcon>
-              <Notifications />
-            </ListItemIcon>
-            <ListItemText primary="Alertas" />
-          </ListItem>
-        </List>
-      </Box>
+      {drawerContent}
     </Drawer>
   );
 };

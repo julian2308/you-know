@@ -1,9 +1,11 @@
 import React from 'react';
-import { AppBar, Toolbar, IconButton, Box, Badge, Menu, MenuItem, Typography, Divider } from '@mui/material';
-import { Notifications } from '@mui/icons-material';
+import { AppBar, Toolbar, IconButton, Box, Badge, Menu, MenuItem, Typography, Divider, useMediaQuery, useTheme } from '@mui/material';
+import { Notifications, Menu as MenuIcon } from '@mui/icons-material';
 import ErrorIcon from '@mui/icons-material/Error';
 
-const Topbar = ({ drawerWidth, alerts = [] }) => {
+const Topbar = ({ alerts = [], onMenuClick }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
 
@@ -25,6 +27,26 @@ const Topbar = ({ drawerWidth, alerts = [] }) => {
       }}
     >
       <Toolbar>
+        {isMobile && (
+          <IconButton
+            color="inherit"
+            onClick={onMenuClick}
+            sx={{ mr: 1, color: '#0F7AFF' }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <span style={{
+            color: '#0F7AFF',
+            fontWeight: 800,
+            fontSize: 20,
+            letterSpacing: 1,
+            fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
+          }}>
+            You Know
+          </span>
+        </Box>
         <Box sx={{ flexGrow: 1 }} />
         <IconButton sx={{ color: '#A0AEC0' }} onClick={handleOpen} aria-label="alertas críticas">
           <Badge badgeContent={alerts.length} color="error">
