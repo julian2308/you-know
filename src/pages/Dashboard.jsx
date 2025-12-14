@@ -168,8 +168,11 @@ const Dashboard = () => {
 
 
 
-  // Create mock events from activeIssues data
-  const mockEvents = (overview?.activeIssues || []).flatMap(issue => {
+  // Create mock events from activeIssues data - FILTERED BY SELECTED COUNTRY
+  const mockEvents = (selectedCountry === 'ALL' 
+    ? (overview?.activeIssues || [])
+    : (overview?.activeIssues || []).filter(issue => issue.countryCode === selectedCountry)
+  ).flatMap(issue => {
     return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
       let status = 'SUCCEEDED';
       
@@ -216,8 +219,7 @@ const Dashboard = () => {
     new Set((overview?.activeIssues || []).map(i => i.countryCode))
   ).filter(Boolean).sort();
   
-  // Mostrar TODOS los payins en la tabla (no filtrar por país)
-  // Las métricas sí se filtran por país, pero la tabla muestra todas las transacciones
+  // Los payins ahora se filtran por país basado en selectedCountry
   const payins = mockEvents;
   
   // Filtrar activeIssues por país
