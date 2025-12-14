@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: 'esnext',
-    minify: 'esbuild',
     sourcemap: false,
     rollupOptions: {
       output: {
