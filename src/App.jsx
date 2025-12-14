@@ -6,6 +6,7 @@ import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
 import Providers from './pages/Providers';
+import Merchants from './pages/Merchants';
 import { mockData } from './data/mockData';
 import usePayinMetrics from './hooks/usePayinMetrics';
 import useSecurityScore from './hooks/useSecurityScore';
@@ -168,6 +169,7 @@ const App = () => {
               </div>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/merchants" element={<Merchants />} />
                 <Route path="/providers" element={<Providers />} />
                 <Route path="/alerts" element={<Alerts allAlerts={allAlerts} />} />
               </Routes>

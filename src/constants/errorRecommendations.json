@@ -1,0 +1,309 @@
+{
+  "errorRecommendations": {
+    "MISSING_REQUIRED_FIELDS": {
+      "title": "Información Incompleta",
+      "severity": "error",
+      "userMessage": "Falta información necesaria del cliente para procesar el pago",
+      "description": "El cliente no proporcionó todos los datos requeridos en la solicitud de pago",
+      "actions": [
+        "Pídele al cliente que complemente su información",
+        "Verifica que el cliente haya ingresado nombre, email y datos bancarios",
+        "Reinicia el flujo de pago con datos completos"
+      ],
+      "whatToDo": "Asegúrate de que tu formulario de pago solicite y valide todos los datos requeridos antes de enviar la transacción a Yuno. Implementa mensajes automáticos para que el cliente complete la información faltante.",
+      "estimatedResolutionTime": "Inmediato"
+    },
+    "INVALID_AMOUNT": {
+      "title": "Monto Inválido",
+      "severity": "error",
+      "userMessage": "El monto del pago está fuera de los límites permitidos",
+      "description": "El cliente intentó pagar un monto que no está permitido en tu configuración",
+      "actions": [
+        "Revisa con el cliente si el monto es correcto",
+        "Consulta tus límites de pago mínimo y máximo",
+        "Procesa el pago con un monto dentro del rango permitido"
+      ],
+      "whatToDo": "Configura validaciones automáticas en tu checkout para que el monto esté dentro de los límites permitidos antes de enviar la transacción. Muestra un mensaje claro al cliente si el monto no es válido.",
+      "estimatedResolutionTime": "Inmediato"
+    },
+    "INVALID_CURRENCY": {
+      "title": "Moneda No Soportada",
+      "severity": "error",
+      "userMessage": "La moneda del pago no está configurada en tu cuenta",
+      "description": "Tu cuenta de Yuno no tiene habilitada esta moneda para transacciones",
+      "actions": [
+        "Ofrece al cliente otra moneda disponible",
+        "Verifica qué monedas tienes habilitadas en tu dashboard",
+        "Contacta a soporte de Yuno si necesitas habilitar otra moneda"
+      ],
+      "whatToDo": "Permite solo las monedas habilitadas en tu cuenta Yuno en el selector de moneda del checkout. Si necesitas habilitar una nueva moneda, solicita la activación a soporte de Yuno.",
+      "estimatedResolutionTime": "1-2 días hábiles si requiere cambio"
+    },
+    "INVALID_BENEFICIARY_DATA": {
+      "title": "Datos del Destinatario Incorrectos",
+      "severity": "error",
+      "userMessage": "Los datos bancarios del cliente son inválidos o incompletos",
+      "description": "El cliente proporcionó información bancaria que no cumple con los requisitos",
+      "actions": [
+        "Comunícate con el cliente para verificar sus datos bancarios",
+        "Pídele que confirme: nombre exacto, número de cuenta e institución bancaria",
+        "Solicita nuevamente el pago con los datos correctos"
+      ],
+      "whatToDo": "Implementa validaciones automáticas de formato y completitud para los datos bancarios en tu formulario. Si el error persiste, revisa la integración y los logs para identificar datos faltantes o incorrectos.",
+      "estimatedResolutionTime": "5-10 minutos"
+    },
+    "INVALID_BANK_ACCOUNT": {
+      "title": "Cuenta Bancaria Inválida",
+      "severity": "error",
+      "userMessage": "El número de cuenta bancaria del cliente no es válido",
+      "description": "La cuenta bancaria proporcionada tiene un formato incorrecto",
+      "actions": [
+        "Contacta al cliente para confirmar su número de cuenta",
+        "Verifica el IBAN, CLABE o número de cuenta según corresponda",
+        "Solicita que confirme directamente con su banco si es correcto"
+      ],
+      "whatToDo": "Valida automáticamente el formato del número de cuenta antes de enviar la transacción. Si el error persiste, revisa la integración y consulta con soporte de Yuno.",
+      "estimatedResolutionTime": "15-30 minutos"
+    },
+    "INSUFFICIENT_BALANCE": {
+      "title": "Saldo Insuficiente",
+      "severity": "warning",
+      "userMessage": "El cliente no tiene fondos suficientes en su cuenta",
+      "description": "La cuenta bancaria del cliente no tiene saldo para cubrir el pago",
+      "actions": [
+        "Notifica al cliente que necesita más fondos",
+        "Ofrece un monto menor si es posible",
+        "Proporciona opciones alternativas de pago o pago después"
+      ],
+      "whatToDo": "Muestra un mensaje automático en el checkout indicando que la transacción fue rechazada por saldo insuficiente. Permite al cliente intentar con otro método de pago o monto menor.",
+      "estimatedResolutionTime": "Variable según el cliente"
+    },
+    "PAYOUT_LIMIT_EXCEEDED": {
+      "title": "Límite de Transacción Excedido",
+      "severity": "warning",
+      "userMessage": "El cliente excedió el límite de pago máximo permitido",
+      "description": "Tu cuenta tiene límites configurados que el cliente superó",
+      "actions": [
+        "Ofrece procesar el pago en dos o más transacciones",
+        "Revisa tus límites de transacción en el dashboard",
+        "Contacta a Yuno si necesitas aumentar tus límites"
+      ],
+      "whatToDo": "Asegúrate de que tu sistema no permita transacciones que superen los límites configurados. Si necesitas aumentar el límite, solicita el cambio a soporte de Yuno.",
+      "estimatedResolutionTime": "Depende de tu límite configurado"
+    },
+    "DAILY_PAYOUT_LIMIT": {
+      "title": "Límite Diario Alcanzado",
+      "severity": "warning",
+      "userMessage": "Ya procesaste el máximo de pagos permitido hoy",
+      "description": "Tu cuenta alcanzó el límite diario de transacciones",
+      "actions": [
+        "Ofrece al cliente procesar el pago mañana",
+        "Verifica tu límite diario en el dashboard",
+        "Contacta a Yuno si necesitas aumentar tu capacidad diaria"
+      ],
+      "whatToDo": "Configura tu sistema para rechazar automáticamente pagos que excedan el límite diario y muestra un mensaje claro al cliente. Si necesitas aumentar el límite, solicita el cambio a soporte de Yuno.",
+      "estimatedResolutionTime": "Hasta 24 horas"
+    },
+    "PAYOUT_NOT_ENABLED": {
+      "title": "Servicio de Pagos No Activado",
+      "severity": "error",
+      "userMessage": "Tu cuenta no tiene habilitado el servicio de pagos",
+      "description": "Tu cuenta de Yuno aún no tiene activado el módulo de transferencias",
+      "actions": [
+        "Accede a tu dashboard de Yuno",
+        "Solicita la activación del servicio de pagos",
+        "Completa cualquier verificación adicional requerida",
+        "Espera confirmación de que el servicio esté activo"
+      ],
+      "whatToDo": "Verifica en tu dashboard de Yuno que el servicio de pagos esté activo antes de enviar transacciones. Si no está activo, solicita la activación a soporte de Yuno.",
+      "estimatedResolutionTime": "1-3 días hábiles"
+    },
+    "AUTHORIZATION_REQUIRED": {
+      "title": "Confirmación de Seguridad Requerida",
+      "severity": "warning",
+      "userMessage": "Yuno solicita una confirmación adicional para procesar el pago",
+      "description": "Por motivos de seguridad, se requiere verificación adicional",
+      "actions": [
+        "Busca el código de confirmación en tu email o SMS",
+        "Completa el proceso de autenticación solicitado",
+        "Confirma que tu cliente pueda recibir mensajes de verificación",
+        "Reinicia el pago una vez confirmado"
+      ],
+      "whatToDo": "Asegúrate de que tu flujo de pago permita completar la autenticación requerida (OTP, 2FA, etc). Si el cliente no completa la autenticación, muestra un mensaje automático y permite reintentar.",
+      "estimatedResolutionTime": "5-10 minutos"
+    },
+    "AUTHORIZATION_EXPIRED": {
+      "title": "Confirmación Expirada",
+      "severity": "error",
+      "userMessage": "El código de confirmación de Yuno expiró",
+      "description": "El tiempo para confirmar el pago venció",
+      "actions": [
+        "Solicita un nuevo código de confirmación",
+        "Reinicia el proceso de pago desde el principio",
+        "Asegúrate de confirmar dentro del tiempo indicado"
+      ],
+      "whatToDo": "Permite al cliente solicitar un nuevo código de confirmación desde el checkout y asegúrate de que el flujo permita completar la autenticación dentro del tiempo requerido.",
+      "estimatedResolutionTime": "Inmediato"
+    },
+    "PROVIDER_DECLINED": {
+      "title": "Rechazo del Banco",
+      "severity": "error",
+      "userMessage": "El banco del cliente rechazó el pago",
+      "description": "La institución bancaria no aprobó la transacción",
+      "actions": [
+        "Contacta al cliente para verificar que sus datos sean correctos",
+        "Sugiere que intente con otro método de pago",
+        "Pídele que contacte a su banco si hay bloqueos activos",
+        "Intenta nuevamente en unos minutos"
+      ],
+      "whatToDo": "Muestra un mensaje automático en el checkout indicando que el banco rechazó la transacción. Permite al cliente intentar con otro método de pago o reintentar más tarde.",
+      "estimatedResolutionTime": "Intenta después de 30-60 minutos"
+    },
+    "ACCOUNT_CLOSED": {
+      "title": "Cuenta Bancaria Cerrada",
+      "severity": "warning",
+      "userMessage": "La cuenta bancaria del cliente ha sido cerrada",
+      "description": "La institución bancaria cerró la cuenta del cliente",
+      "actions": [
+        "Contacta al cliente para informarle del problema",
+        "Solicita que proporcione una cuenta bancaria activa",
+        "Confirma con el cliente que tiene otra cuenta disponible"
+      ],
+      "whatToDo": "Configura tu sistema para rechazar pagos a cuentas bancarias cerradas y muestra un mensaje automático al cliente solicitando una cuenta válida.",
+      "estimatedResolutionTime": "Variable"
+    },
+    "ACCOUNT_BLOCKED": {
+      "title": "Cuenta Bloqueada",
+      "severity": "warning",
+      "userMessage": "La cuenta bancaria del cliente está bloqueada",
+      "description": "El banco bloqueó la cuenta y no puede recibir transferencias",
+      "actions": [
+        "Notifica al cliente que su cuenta está bloqueada",
+        "Sugiere que contacte a su banco para desbloquearla",
+        "Ofrece procesar cuando la cuenta esté activa nuevamente"
+      ],
+      "whatToDo": "Muestra un mensaje automático en el checkout indicando que la cuenta bancaria está bloqueada. Permite al cliente ingresar otra cuenta o intentar más tarde.",
+      "estimatedResolutionTime": "Depende del cliente"
+    },
+    "RISK_BLOCKED": {
+      "title": "Bloqueo de Seguridad",
+      "severity": "critical",
+      "userMessage": "Yuno detectó un riesgo potencial y bloqueó la transacción",
+      "description": "El sistema de seguridad de Yuno bloqueó el pago",
+      "actions": [
+        "No intentes procesar el mismo pago nuevamente",
+        "Contacta directamente al soporte de Yuno",
+        "Proporciona el ID de la transacción al soporte",
+        "Espera su revisión antes de reintentar"
+      ],
+      "whatToDo": "No reproceses el pago automáticamente. Escala el caso a soporte de Yuno con el ID de la transacción para revisión de seguridad.",
+      "estimatedResolutionTime": "2-4 horas"
+    },
+    "AML_REJECTED": {
+      "title": "Rechazo Regulatorio",
+      "severity": "critical",
+      "userMessage": "El pago fue rechazado por validaciones regulatorias",
+      "description": "Yuno rechazó la transacción por cumplimiento anti-lavado de dinero",
+      "actions": [
+        "Contacta a soporte de Yuno inmediatamente",
+        "Ten lista la información del cliente y la transacción",
+        "Proporciona documentación que solicite el equipo de cumplimiento",
+        "Espera la revisión y resolución del equipo de compliance"
+      ],
+      "whatToDo": "Escala el caso a soporte de Yuno con la información de la transacción y sigue las instrucciones del equipo de cumplimiento antes de volver a intentar el pago.",
+      "estimatedResolutionTime": "3-5 días hábiles"
+    },
+    "SANCTIONS_MATCH": {
+      "title": "Validación Legal Requerida",
+      "severity": "critical",
+      "userMessage": "El pago no puede procesarse por restricciones legales",
+      "description": "La transacción o el cliente no cumplen con requisitos legales",
+      "actions": [
+        "No intentes forzar la transacción nuevamente",
+        "Contacta a soporte de Yuno de inmediato",
+        "Revisa que los datos del cliente sean correctos",
+        "Espera la revisión legal de Yuno antes de continuar"
+      ],
+      "whatToDo": "No reproceses el pago automáticamente. Escala el caso a soporte de Yuno para revisión legal y sigue sus instrucciones antes de volver a intentar.",
+      "estimatedResolutionTime": "5-10 días hábiles"
+    },
+    "PROVIDER_TIMEOUT": {
+      "title": "Tiempo de Respuesta Excedido",
+      "severity": "warning",
+      "userMessage": "El banco tardó más de lo esperado en responder",
+      "description": "El banco del cliente no respondió dentro del tiempo permitido",
+      "actions": [
+        "Espera 5-10 minutos antes de reintentar",
+        "Verifica que tu conexión a internet sea estable",
+        "Intenta nuevamente el pago",
+        "Contacta a soporte si el problema persiste"
+      ],
+      "whatToDo": "Implementa reintentos automáticos para este tipo de error y muestra un mensaje al cliente indicando que el banco está tardando en responder. Si el problema persiste, revisa el estado del banco o contacta a soporte de Yuno.",
+      "estimatedResolutionTime": "Intenta en 5-10 minutos"
+    },
+    "PROVIDER_UNAVAILABLE": {
+      "title": "Servicio del Banco No Disponible",
+      "severity": "warning",
+      "userMessage": "El servicio del banco no está disponible en este momento",
+      "description": "El banco está experimentando problemas técnicos o mantenimiento",
+      "actions": [
+        "Espera 15-30 minutos antes de reintentar",
+        "Verifica el estado del banco en redes sociales",
+        "Intenta nuevamente cuando el banco se normalice",
+        "Ofrece al cliente procesar después si es urgente"
+      ],
+      "whatToDo": "Muestra un mensaje automático en el checkout indicando que el banco no está disponible. Permite al cliente reintentar más tarde o elegir otro método de pago.",
+      "estimatedResolutionTime": "15-60 minutos"
+    },
+    "INTERNAL_PROCESSING_ERROR": {
+      "title": "Error en el Procesamiento",
+      "severity": "error",
+      "userMessage": "Ocurrió un error interno al procesar el pago",
+      "description": "Yuno encontró un problema técnico interno",
+      "actions": [
+        "Intenta procesar el pago nuevamente",
+        "Si el error persiste, contacta a soporte de Yuno",
+        "Ten lista la información de la transacción y cliente",
+        "Proporciona el ID de error al equipo de soporte"
+      ],
+      "whatToDo": "Implementa lógica de reintentos automáticos para este error. Si el problema persiste, escala el caso a soporte de Yuno con el ID de la transacción y los detalles del error.",
+      "estimatedResolutionTime": "1-2 horas"
+    },
+    "RETRY_LIMIT_EXCEEDED": {
+      "title": "Demasiados Intentos Fallidos",
+      "severity": "error",
+      "userMessage": "Se alcanzó el límite de reintentos para este pago",
+      "description": "Yuno bloqueó reintentos después de múltiples fallos",
+      "actions": [
+        "Revisa que todos los datos del cliente sean correctos",
+        "Espera varias horas antes de procesar un nuevo pago",
+        "Ofrece al cliente una alternativa de pago",
+        "Documenta el error para revisar qué falló"
+      ],
+      "whatToDo": "No reproceses el pago automáticamente. Configura tu sistema para limitar los reintentos y muestra un mensaje al cliente indicando que debe esperar antes de volver a intentar. Si el problema continúa, escala a soporte de Yuno.",
+      "estimatedResolutionTime": "Mínimo 2-4 horas"
+    }
+  },
+  "severityLevels": {
+    "info": {
+      "color": "#0F7AFF",
+      "icon": "info",
+      "priority": 1
+    },
+    "warning": {
+      "color": "#FF9500",
+      "icon": "warning",
+      "priority": 2
+    },
+    "error": {
+      "color": "#FF3B30",
+      "icon": "error",
+      "priority": 3
+    },
+    "critical": {
+      "color": "#FF1744",
+      "icon": "alert",
+      "priority": 4
+    }
+  }
+}

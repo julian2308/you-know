@@ -1,6 +1,6 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Box, useMediaQuery, useTheme } from '@mui/material';
-import { Home, Notifications, Business } from '@mui/icons-material';
+import { Home, Notifications, Business, Store } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
 const drawerWidth = 80;
@@ -12,17 +12,22 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
   const drawerContent = (
     <Box sx={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 2 }}>
       <List sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-        <ListItem component={Link} to="/" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer' }}>
+        <ListItem component={Link} to="/" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer', title: 'Dashboard' }}>
           <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
             <Home sx={{ fontSize: 28, color: '#0F7AFF' }} />
           </ListItemIcon>
         </ListItem>
-        <ListItem component={Link} to="/providers" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer' }}>
+        <ListItem component={Link} to="/merchants" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer', title: 'Mi Negocio' }}>
+          <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
+            <Store sx={{ fontSize: 28, color: '#0F7AFF' }} />
+          </ListItemIcon>
+        </ListItem>
+        <ListItem component={Link} to="/providers" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer', title: 'Providers' }}>
           <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
             <Business sx={{ fontSize: 28, color: '#0F7AFF' }} />
           </ListItemIcon>
         </ListItem>
-        <ListItem component={Link} to="/alerts" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer' }}>
+        <ListItem component={Link} to="/alerts" onClick={() => isMobile && onMobileClose()} sx={{ justifyContent: 'center', p: 1.5, cursor: 'pointer', title: 'Alertas' }}>
           <ListItemIcon sx={{ justifyContent: 'center', minWidth: 40 }}>
             <Notifications sx={{ fontSize: 28, color: '#0F7AFF' }} />
           </ListItemIcon>
