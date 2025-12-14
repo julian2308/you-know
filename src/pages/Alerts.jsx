@@ -43,28 +43,30 @@ const Alerts = () => {
         const url = OVERVIEW_ENDPOINT(from, to);
         const data = await apiClient.get(url);
 
-        // Map activeIssues to alerts format
-        const alerts = (data?.activeIssues || []).map(issue => ({
-          id: `${issue.merchantId}-${issue.incidentTag}`,
-          provider: issue.provider,
-          severity:
-            issue.impactLevel === 'high'
-              ? 'critical'
-              : issue.impactLevel === 'medium'
-              ? 'warning'
-              : 'info',
-          errorCode: issue.incidentTag,
-          errorMessage: issue.title,
-          description: issue.description,
-          failureCount: issue.failedEvents || 0,
-          failureRate: (issue.errorRate || 0).toFixed(1),
-          merchantName: issue.merchantName,
-          countryCode: issue.countryCode,
-          paymentMethod: issue.paymentMethod,
-          suggestedAction: issue.suggestedActionType,
-          firstSeen: issue.firstSeen,
-          lastSeen: issue.lastSeen
-        }));
+        // Map activeIssues to alerts format - only include issues with failures
+        const alerts = (data?.activeIssues || [])
+          .filter(issue => (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0)
+          .map(issue => ({
+            id: `${issue.merchantId}-${issue.incidentTag}`,
+            provider: issue.provider,
+            severity:
+              issue.impactLevel === 'high'
+                ? 'critical'
+                : issue.impactLevel === 'medium'
+                ? 'warning'
+                : 'info',
+            errorCode: issue.incidentTag,
+            errorMessage: issue.title,
+            description: issue.description,
+            failureCount: issue.failedEvents || 0,
+            failureRate: (issue.errorRate || 0).toFixed(1),
+            merchantName: issue.merchantName,
+            countryCode: issue.countryCode,
+            paymentMethod: issue.paymentMethod,
+            suggestedAction: issue.suggestedActionType,
+            firstSeen: issue.firstSeen,
+            lastSeen: issue.lastSeen
+          }));
 
         setAllAlerts(alerts);
         setLoading(false);
@@ -172,30 +174,33 @@ const Alerts = () => {
 
       {/* ALERTAS (TABLA) */}
       <Paper>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Provider</TableCell>
-              <TableCell>Incident Type</TableCell>
-              <TableCell>Merchant</TableCell>
-              <TableCell>Country</TableCell>
-              <TableCell>Severity</TableCell>
-              <TableCell>Error Rate</TableCell>
-              <TableCell>Last Seen</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredAlerts.length === 0 ? (
+        {filteredAlerts.length === 0 ? (
+          <Box sx={{ p: 6, textAlign: 'center', backgroundColor: '#151B2E' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <CheckCircleIcon sx={{ fontSize: 72, color: '#00D084' }} />
+              <Typography variant="h5" fontWeight={700} sx={{ color: '#00D084' }}>
+                ✓ Everything is working perfectly!
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#A0AEC0', maxWidth: 400 }}>
+                No issues detected. All transactions are processing smoothly.
+              </Typography>
+            </Box>
+          </Box>
+        ) : (
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 3 }}>
-                  <CheckCircleIcon sx={{ fontSize: 48, color: '#00D084', mb: 2 }} />
-                  <Typography variant="h6" fontWeight={700}>
-                    No alerts
-                  </Typography>
-                </TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Incident Type</TableCell>
+                <TableCell>Merchant</TableCell>
+                <TableCell>Country</TableCell>
+                <TableCell>Severity</TableCell>
+                <TableCell>Error Rate</TableCell>
+                <TableCell>Last Seen</TableCell>
               </TableRow>
-            ) : (
-              filteredAlerts.map(alert => {
+            </TableHead>
+            <TableBody>
+              {filteredAlerts.map(alert => {
                 const colors = getSeverityColor(alert.severity);
 
                 return (
@@ -246,10 +251,10 @@ const Alerts = () => {
                     </TableCell>
                   </TableRow>
                 );
-              })
-            )}
-          </TableBody>
-        </Table>
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Paper>
     </Box>
   );

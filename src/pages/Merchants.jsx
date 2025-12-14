@@ -72,10 +72,16 @@ const Merchants = () => {
   // Obtener issues del merchant seleccionado
   const merchantIssues = merchantDetail?.issues || [];
 
+  // Filtrar solo issues con fallos reales
+  const merchantIssuesWithFailures = merchantIssues.filter(issue => 
+    (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0
+  );
+
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
     if (!merchantDetail) return { totalPayins: 0, successRate: 0, failedPayins: 0, totalVolume: '$0.0K', avgLatency: '0s', successCount: 0, failureRate: 0 };
 
+<<<<<<< HEAD
     const totalEvents = merchantDetail.totalEvents || 0;
     const failed = merchantDetail.failedEvents || 0;
     const success = merchantDetail.successEvents || (totalEvents - failed);
@@ -96,6 +102,30 @@ const Merchants = () => {
       avgLatency: `${(avgLatencyMs / 1000).toFixed(2)}s`,
       successCount: success,
       failureRate: Number(failureRate.toFixed(1))
+=======
+    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+    const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    const totalSuccess = totalEvents - totalFailed;
+    const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
+    
+    // Calculate total volume from merchant issues
+    const volumeAmount = merchantIssues.reduce((sum, i) => sum + (i.totalEvents * 100), 0);
+    const totalVolume = `$${(volumeAmount / 1000).toFixed(1)}K`;
+    
+    const avgLatency = merchantIssues.length > 0 
+      ? (merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length / 1000).toFixed(2)
+      : '0.00';
+    const failureRate = totalEvents > 0 ? ((totalFailed / totalEvents) * 100).toFixed(1) : '0.0';
+
+    return {
+      totalPayins: totalEvents,
+      successRate: parseFloat(successRate),
+      failedPayins: totalFailed,
+      totalVolume: totalVolume,
+      avgLatency: `${avgLatency}s`,
+      successCount: totalSuccess,
+      failureRate: parseFloat(failureRate)
+>>>>>>> 3ce958c4e13a9acbb22429c61833d9dd1c6397ff
     };
   };
 
@@ -457,13 +487,34 @@ const Merchants = () => {
                 Should I do something?
               </Typography>
 
-              {merchantIssues.length > 0 ? (
+              {merchantIssuesWithFailures.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Typography variant="body2" sx={{ color: '#A0AEC0', fontWeight: 600 }}>
                     Active Issues:
                   </Typography>
-                  {merchantIssues.map((issue, index) => {
+                  {merchantIssuesWithFailures.map((issue, index) => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
+                    
+                    // Create a user-friendly error message
+                    const getErrorMessage = (errorCode) => {
+                      const messages = {
+                        'TIMEOUT_SPIKE': 'Transaction processing delays detected',
+                        'PSE_TIMEOUT': 'Payment gateway timeout issue',
+                        'NETWORK_ERRORS': 'Network connectivity problems',
+                        'default': 'Payment processing issue'
+                      };
+                      return messages[errorCode] || messages['default'];
+                    };
+
+                    // Create a user-friendly action message
+                    const getActionMessage = (actionType) => {
+                      const actions = {
+                        'notify_ops': 'Please contact support to address this issue',
+                        'retry': 'Retry the transaction',
+                        'default': 'Take action to resolve'
+                      };
+                      return actions[actionType] || actions['default'];
+                    };
                     
                     return (
                       <Alert 
@@ -476,14 +527,14 @@ const Merchants = () => {
                             {index + 1}. {issue.title}
                           </Typography>
                           <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-                            {issue.description}
+                            {getErrorMessage(issue.incidentTag)} • {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
                           </Typography>
                           <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
-                              Suggested Action:
+                              Recommended Action:
                             </Typography>
                             <Typography variant="caption" sx={{ display: 'block' }}>
-                              {issue.suggestedActionType}
+                              {getActionMessage(issue.suggestedActionType)}
                             </Typography>
                           </Box>
                         </Box>
@@ -492,9 +543,15 @@ const Merchants = () => {
                   })}
                 </Box>
               ) : (
-                <Alert severity="success" sx={{ mb: 0 }}>
-                  ✓ Excellent. All your transactions are processing normally. Keep regular monitoring.
-                </Alert>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, py: 4, px: 2 }}>
+                  <CheckCircleIcon sx={{ fontSize: 64, color: '#00D084' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#00D084', textAlign: 'center' }}>
+                    ✓ Everything is working perfectly!
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#A0AEC0', textAlign: 'center' }}>
+                    All transactions are processing smoothly. No issues detected. Keep regular monitoring.
+                  </Typography>
+                </Box>
               )}
 
               <Typography variant="caption" sx={{ color: '#A0AEC0', mt: 2 }}>

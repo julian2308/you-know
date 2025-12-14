@@ -75,14 +75,32 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
             <MenuItem disabled sx={{ color: '#A0AEC0' }}>No critical alerts</MenuItem>
           )}
           {alerts.map((alert, idx) => (
-            <MenuItem key={alert.id} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
+            <MenuItem key={alert.id || idx} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
               <ErrorIcon sx={{ color: '#FF3B30', mr: 1, mt: 0.5 }} />
               <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: '#FF3B30' }}>{alert.provider}</Typography>
-                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>{alert.errorMessage}</Typography>
-                <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                  {alert.failureCount} failed payin(s) • Rate: {alert.failureRate}%
-                </Typography>
+                {/* Mostrar formato para alertas críticas generadas localmente */}
+                {alert.provider && alert.errorMessage ? (
+                  <>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#FF3B30' }}>{alert.provider}</Typography>
+                    <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>{alert.errorMessage}</Typography>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                      {alert.failureCount} failed payin(s) • Rate: {alert.failureRate}%
+                    </Typography>
+                  </>
+                ) : (
+                  // Mostrar formato para alertas recibidas por WebSocket
+                  <>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#FF3B30' }}>
+                      🚨 {alert.level || "Alert"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>
+                      {alert.message}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                      {alert.timestamp && (new Date(alert.timestamp).toLocaleTimeString())}
+                    </Typography>
+                  </>
+                )}
               </Box>
             </MenuItem>
           ))}
