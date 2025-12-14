@@ -4,7 +4,10 @@
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://kerri-presusceptible-gallfly.ngrok-free.dev';
+
+// Endpoint de overview
+export const OVERVIEW_ENDPOINT = (from, to) => `${BACKEND_URL}/api/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
 // Endpoints de Providers
 const PROVIDERS_ENDPOINTS = {
