@@ -28,24 +28,72 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import errorRecommendations from '../constants/errorRecommendations.json';
 
 const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
   const [allAlerts, setAllAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState('2025-12-10T08:00');
+  const [toDate, setToDate] = useState('2025-12-15T12:00');
+  const [expandedAlerts, setExpandedAlerts] = useState({});
 
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  // Map error codes to known recommendation codes
+  const mapErrorCode = (errorCode) => {
+    const errorCodeMap = {
+      'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
+      'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'RISK_BLOCKED': 'RISK_BLOCKED',
+      'AML_REJECTED': 'AML_REJECTED',
+      'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+    };
+    return errorCodeMap[errorCode] || null;
+  };
+
+  // Get recommendations from JSON based on error code
+  const getRecommendation = (errorCode) => {
+    const mappedCode = mapErrorCode(errorCode);
+    if (mappedCode) {
+      return errorRecommendations.errorRecommendations[mappedCode] || null;
+    }
+    return null;
+  };
+
+  // Toggle expanded state for alert actions
+  const toggleExpandAlert = (alertId) => {
+    setExpandedAlerts(prev => ({
+      ...prev,
+      [alertId]: !prev[alertId]
+    }));
+  };
 
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
 
-        // Map activeIssues to alerts format - only include issues with failures
+        // Map activeIssues to alerts format - only include issues with failures (excluding user-cancelled)
         const alerts = (data?.activeIssues || [])
-          .filter(issue => (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0)
+          .filter(issue => {
+            const isCancelled = issue.mainErrorCategory === 'USER';
+            const hasFailures = (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0;
+            return hasFailures && !isCancelled;
+          })
           .map(issue => ({
             id: `${issue.merchantId}-${issue.incidentTag}`,
             provider: issue.provider,
@@ -77,7 +125,7 @@ const Alerts = () => {
     };
 
     fetchAlerts();
-  }, []);
+  }, [fromDate, toDate]);
 
   const filteredAlerts =
     filterTab === 0
@@ -190,6 +238,7 @@ const Alerts = () => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell width="40"></TableCell>
                 <TableCell>Provider</TableCell>
                 <TableCell>Incident Type</TableCell>
                 <TableCell>Merchant</TableCell>
@@ -202,54 +251,112 @@ const Alerts = () => {
             <TableBody>
               {filteredAlerts.map(alert => {
                 const colors = getSeverityColor(alert.severity);
+                const isExpanded = expandedAlerts[alert.id] || false;
+                const recommendation = getRecommendation(alert.errorCode);
 
                 return (
-                  <TableRow
-                    key={alert.id}
-                    sx={{
-                      background: colors.bg,
-                      border: `2px solid ${colors.border}`,
-                      '&:last-child td, &:last-child th': { border: 0 }
-                    }}
-                  >
-                    <TableCell>
-                      <Chip label={alert.provider} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {alert.errorCode}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{alert.merchantName}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {alert.countryCode}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={alert.severity.toUpperCase()}
-                        size="small"
-                        sx={{
-                          background: colors.border,
-                          color: '#fff',
-                          fontWeight: 600
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.border }}>
-                        {alert.failureRate}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                        {new Date(alert.lastSeen).toLocaleString()}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
+                  <React.Fragment key={alert.id}>
+                    <TableRow
+                      sx={{
+                        background: colors.bg,
+                        border: `2px solid ${colors.border}`,
+                        '&:last-child td, &:last-child th': { border: 0 },
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <TableCell width="40" sx={{ textAlign: 'center' }}>
+                        <Button
+                          size="small"
+                          onClick={() => toggleExpandAlert(alert.id)}
+                          sx={{
+                            minWidth: 0,
+                            p: 0,
+                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                          }}
+                        >
+                          <ExpandMoreIcon sx={{ fontSize: 20 }} />
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={alert.provider} size="small" />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {alert.errorCode}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{alert.merchantName}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {alert.countryCode}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={alert.severity.toUpperCase()}
+                          size="small"
+                          sx={{
+                            background: colors.border,
+                            color: '#fff',
+                            fontWeight: 600
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: colors.border }}>
+                          {alert.failureRate}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                          {new Date(alert.lastSeen).toLocaleString()}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && recommendation && (
+                      <TableRow sx={{ background: 'rgba(0, 0, 0, 0.1)' }}>
+                        <TableCell colSpan={8} sx={{ p: 3 }}>
+                          <Box sx={{ display: 'flex', gap: 3 }}>
+                            <LightbulbIcon sx={{ fontSize: 28, color: '#FF9500', flexShrink: 0 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                                Take action to resolve
+                              </Typography>
+                              <Typography variant="body2" sx={{ mb: 2, color: '#A0AEC0' }}>
+                                {recommendation.whatToDo}
+                              </Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                Recommended steps:
+                              </Typography>
+                              <List sx={{ pl: 0, py: 0 }}>
+                                {recommendation.actions.map((action, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
+                                    <ListItemIcon sx={{ minWidth: 24 }}>
+                                      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.border }}>
+                                        {idx + 1}.
+                                      </Typography>
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={action}
+                                      primaryTypographyProps={{ variant: 'body2' }}
+                                    />
+                                  </ListItem>
+                                ))}
+                              </List>
+                              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #2D3748' }}>
+                                <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                                  <strong>Estimated time to resolve:</strong> {recommendation.estimatedResolutionTime}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </TableBody>

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, LinearProgress, FormControl, Select, MenuItem } from '@mui/material';
+import { Box, Grid, Paper, Typography, LinearProgress, FormControl, Select, MenuItem, TextField } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
 import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import errorRecommendations from '../constants/errorRecommendations.json';
 
 const Providers = () => {
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -13,13 +14,49 @@ const Providers = () => {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  // Fechas fijas
+  const fromDate = '2025-12-13T08:00:00';
+  const toDate = '2025-12-13T12:00:00';
+
+  // Map error codes to known recommendation codes
+  const mapErrorCode = (errorCode) => {
+    const errorCodeMap = {
+      'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
+      'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'RISK_BLOCKED': 'RISK_BLOCKED',
+      'AML_REJECTED': 'AML_REJECTED',
+      'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+    };
+    return errorCodeMap[errorCode] || null;
+  };
+
+  // Get recommendations from JSON based on error code
+  const getRecommendation = (errorCode) => {
+    const mappedCode = mapErrorCode(errorCode);
+    if (mappedCode) {
+      return errorRecommendations.errorRecommendations[mappedCode] || null;
+    }
+    return null;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
         setOverview(data);
         setLoading(false);
@@ -55,6 +92,42 @@ const Providers = () => {
       )
     : [];
 
+  // Crear mock events con status correcto (incluyendo CANCELLED para USER)
+  const providerMockEvents = filteredIssues.flatMap(issue => {
+    return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
+      let status = 'SUCCEEDED';
+      
+      if (issue.status) {
+        const apiStatus = issue.status?.trim()?.toUpperCase();
+        if (apiStatus === 'APPROVE' || apiStatus === 'APPROVED' || apiStatus === 'SUCCEED' || apiStatus === 'SUCCESS') {
+          status = 'SUCCEEDED';
+        } else if (apiStatus === 'FAILED' || apiStatus === 'FAIL') {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        } else {
+          status = apiStatus;
+        }
+      } else {
+        if (i < (issue.failedEvents || 0)) {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        }
+      }
+      
+      return {
+        id: `${issue.provider}-${i}`,
+        status: status,
+        country: issue.countryCode,
+        provider: issue.provider,
+        amount: 100,
+        merchant_id: issue.merchantId,
+        merchantName: issue.merchantName,
+        latencyMs: issue.avgLatencyMs,
+        errorCode: issue.mainErrorType
+      };
+    });
+  });
+
   // Calcular KPIs del provider
   const calculateProviderMetrics = () => {
     if (filteredIssues.length === 0) {
@@ -70,7 +143,11 @@ const Providers = () => {
     }
 
     const totalEvents = filteredIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
-    const totalFailed = filteredIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
+    const totalFailed = filteredIssues.reduce((sum, i) => {
+      const isCancelled = i.mainErrorCategory === 'USER';
+      return isCancelled ? sum : sum + (i.failedEvents || 0);
+    }, 0);
     const totalSuccess = totalEvents - totalFailed;
     const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
     const avgLatency = filteredIssues.length > 0 
@@ -153,7 +230,7 @@ const Providers = () => {
         </Typography>
 
         {/* Filtros */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 4, flexDirection: { xs: 'column', md: 'row' } }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 4, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' } }}>
           <FormControl sx={{ minWidth: 250 }}>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
               Select Country

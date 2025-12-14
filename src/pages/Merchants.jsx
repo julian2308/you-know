@@ -1,35 +1,181 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert } from '@mui/material';
+import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField, List, ListItem, ListItemIcon, ListItemText, Collapse, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
-import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, apiClient } from '../config/apiConfig';
+import errorRecommendations from '../constants/errorRecommendations.json';
+
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [expandedAlerts, setExpandedAlerts] = useState({});
 
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  // Map error codes to known recommendation codes
+  const mapErrorCode = (errorCode) => {
+    const errorCodeMap = {
+      'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
+      'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'RISK_BLOCKED': 'RISK_BLOCKED',
+      'AML_REJECTED': 'AML_REJECTED',
+      'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+    };
+    return errorCodeMap[errorCode] || null;
+  };
+
+  // Get recommendations from JSON based on error code
+  const getRecommendation = (errorCode) => {
+    const mappedCode = mapErrorCode(errorCode);
+    if (mappedCode) {
+      return errorRecommendations.errorRecommendations[mappedCode] || null;
+    }
+    return null;
+  };
+
+  // Toggle expanded state for alert actions
+  const toggleExpandAlert = (alertId) => {
+    setExpandedAlerts(prev => ({
+      ...prev,
+      [alertId]: !prev[alertId]
+    }));
+  };
+  
+  // Obtener fecha actual UTC en formato YYYY-MM-DD
+  const getTodayUTC = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+  
+  // Usar UTC now como fecha inicial
+  const [selectedDate, setSelectedDate] = useState(() => getTodayUTC());
+
+  // Calcular fechas automáticamente en UTC
+  const getDateRange = (dateString) => {
+    // Parsear la fecha como UTC (agregando 'Z' al final)
+    const date = new Date(`${dateString}T00:00:00Z`);
+    const nextDay = new Date(date);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    
+    const fromDate = `${dateString}T00:00:00`;
+    const toDate = `${nextDay.toISOString().split('T')[0]}T00:00:00`;
+    
+    return { fromDate, toDate };
+  };
+
+  const { fromDate, toDate } = getDateRange(selectedDate);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        setLoading(true);
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
         setOverview(data);
-        setLoading(false);
+        
+        // Verificar si el merchant seleccionado aún existe en los nuevos datos
+        const newMerchants = Array.from(
+          new Set((data?.activeIssues || []).map(i => i.merchantId))
+        );
+        
+        // Si el merchant seleccionado no existe en los nuevos datos, limpiar la selección
+        if (selectedMerchant && !newMerchants.includes(selectedMerchant)) {
+          setSelectedMerchant('');
+        }
       } catch (err) {
         console.error('Error fetching data:', err);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [selectedDate, selectedMerchant]);
+
+  // Filtrar los datos del overview para el merchant seleccionado
+  const getMerchantData = () => {
+    if (!selectedMerchant || !overview?.activeIssues) {
+      return null;
+    }
+
+    // Filtrar los activeIssues para el merchant seleccionado
+    const merchantIssues = overview.activeIssues.filter(issue => issue.merchantId === selectedMerchant);
+
+    if (merchantIssues.length === 0) {
+      return null;
+    }
+
+    // Construir el objeto merchantDetail con los datos filtrados
+    return {
+      merchantId: selectedMerchant,
+      from: overview.from,
+      to: overview.to,
+      activeIssues: merchantIssues,
+      totalEvents: merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0),
+      totalSuccess: merchantIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0),
+      totalFailed: merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0),
+      avgLatencyMs: merchantIssues.length > 0 
+        ? merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length
+        : 0,
+    };
+  };
+
+  const merchantDetail = getMerchantData();
+
+  // Crear mock events con status correcto (incluyendo CANCELLED para USER)
+  const merchantMockEvents = (merchantDetail?.activeIssues || []).flatMap(issue => {
+    return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
+      let status = 'SUCCEEDED';
+      
+      if (issue.status) {
+        const apiStatus = issue.status?.trim()?.toUpperCase();
+        if (apiStatus === 'APPROVE' || apiStatus === 'APPROVED' || apiStatus === 'SUCCEED' || apiStatus === 'SUCCESS') {
+          status = 'SUCCEEDED';
+        } else if (apiStatus === 'FAILED' || apiStatus === 'FAIL') {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        } else {
+          status = apiStatus;
+        }
+      } else {
+        if (i < (issue.failedEvents || 0)) {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        }
+      }
+      
+      return {
+        id: `${issue.merchantId}-${i}`,
+        status: status,
+        country: issue.countryCode,
+        provider: issue.provider,
+        amount: 100,
+        merchant_id: issue.merchantId,
+        merchantName: issue.merchantName,
+        latencyMs: issue.avgLatencyMs,
+        errorCode: issue.mainErrorType
+      };
+    });
+  });
 
   // Obtener lista de merchants únicos desde activeIssues
   const allMerchants = Array.from(
@@ -37,14 +183,15 @@ const Merchants = () => {
   ).sort();
 
   // Obtener issues del merchant seleccionado
-  const merchantIssues = selectedMerchant
-    ? (overview?.activeIssues || []).filter(i => i.merchantId === selectedMerchant)
-    : [];
+  // Intentar con 'activeIssues' primero, luego 'issues' como fallback
+  const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
 
-  // Filtrar solo issues con fallos reales
-  const merchantIssuesWithFailures = merchantIssues.filter(issue => 
-    (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0
-  );
+  // Filtrar solo issues con fallos reales (excluyendo canceladas por usuario)
+  const merchantIssuesWithFailures = merchantIssues.filter(issue => {
+    const isCancelled = issue.mainErrorCategory === 'USER';
+    const hasFailures = (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0;
+    return hasFailures && !isCancelled;
+  });
 
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
@@ -61,12 +208,21 @@ const Merchants = () => {
     }
 
     const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
-    const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    
+    // Separar fallos reales de canceladas por usuario
+    const totalFailed = merchantIssues.reduce((sum, i) => {
+      const isCancelled = i.mainErrorCategory === 'USER';
+      return isCancelled ? sum : sum + (i.failedEvents || 0);
+    }, 0);
+    
     const totalSuccess = totalEvents - totalFailed;
     const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
     
-    // Calculate total volume from merchant issues
-    const volumeAmount = merchantIssues.reduce((sum, i) => sum + (i.totalEvents * 100), 0);
+    // Calculate total volume from successful transactions only (excluding failed/cancelled)
+    const volumeAmount = merchantIssues.reduce((sum, i) => {
+      const successfulEvents = (i.totalEvents || 0) - (i.failedEvents || 0);
+      return sum + (successfulEvents * 100);
+    }, 0);
     const totalVolume = `$${(volumeAmount / 1000).toFixed(1)}K`;
     
     const avgLatency = merchantIssues.length > 0 
@@ -90,24 +246,36 @@ const Merchants = () => {
   // Analizar problemas por provider
   const getProviderStatus = () => {
     const status = {};
-    merchantIssues.forEach(issue => {
-      if (!status[issue.provider]) {
-        status[issue.provider] = { 
-          total: 0, 
-          failed: 0, 
-          errors: [],
-          impactLevel: issue.impactLevel,
-          latencyMs: issue.avgLatencyMs,
-          merchantName: issue.merchantName,
-          country: issue.countryCode
-        };
-      }
-      status[issue.provider].total += issue.totalEvents || 0;
-      status[issue.provider].failed += issue.failedEvents || 0;
-      if (issue.mainErrorType) {
-        status[issue.provider].errors.push(issue.incidentTag);
-      }
+
+    // Si tu endpoint /merchants/{id} devuelve providers breakdown:
+    (merchantDetail?.providers || []).forEach(p => {
+      status[p.provider] = {
+        total: p.totalEvents || 0,
+        failed: p.failedEvents || 0,
+        latencyMs: p.avgLatencyMs || 0,
+        errors: [] // opcional: lo puedes cruzar con issues para listar incidentTags
+      };
     });
+
+    // Fallback si no viene providers:
+    if (Object.keys(status).length === 0) {
+      merchantIssues.forEach(issue => {
+        if (!status[issue.provider]) {
+          status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
+        }
+        status[issue.provider].total += issue.totalEvents || 0;
+        
+        // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
+        const isCancelled = issue.mainErrorCategory === 'USER';
+        if (!isCancelled) {
+          status[issue.provider].failed += issue.failedEvents || 0;
+        }
+        
+        // Solo agregar error si no es cancelado por usuario
+        if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
+      });
+    }
+
     return status;
   };
 
@@ -190,38 +358,65 @@ const Merchants = () => {
           List of merchants and their payment activity.
         </Typography>
 
-        {/* Merchant Filter */}
-        <FormControl sx={{ minWidth: 300 }}>
-          <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-            Select Merchant
-          </Typography>
-          <Select
-            value={selectedMerchant}
-            onChange={(e) => setSelectedMerchant(e.target.value)}
-            sx={{
-              backgroundColor: '#151B2E',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 1,
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.08)'
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#0F7AFF'
-              }
-            }}
-          >
-            <MenuItem value="">Select your business</MenuItem>
-            {allMerchants.map(merchant => {
-              const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
-              return (
-                <MenuItem key={merchant} value={merchant}>
-                  {merchantName || merchant}
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
+        {/* Date Range and Merchant Filter */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' } }}>
+          <Box>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
+              Date
+            </Typography>
+            <TextField
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              sx={{
+                width: 200,
+                '& input': {
+                  color: '#fff',
+                  fontSize: '0.875rem',
+                  padding: '10px'
+                },
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                }
+              }}
+            />
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mt: 1, display: 'block', fontSize: '0.75rem', fontStyle: 'italic' }}>
+              Showing data for {selectedDate} (00:00) to next day (00:00)
+            </Typography>
+          </Box>
+
+          <FormControl sx={{ minWidth: 300 }}>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
+              Select Merchant
+            </Typography>
+            <Select
+              value={selectedMerchant}
+              onChange={(e) => setSelectedMerchant(e.target.value)}
+              sx={{
+                backgroundColor: '#151B2E',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 1,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#0F7AFF'
+                }
+              }}
+            >
+              <MenuItem value="">Select your business</MenuItem>
+              {allMerchants.map(merchant => {
+                const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
+                return (
+                  <MenuItem key={merchant} value={merchant}>
+                    {merchantName || merchant}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Content */}
@@ -413,50 +608,91 @@ const Merchants = () => {
                   {merchantIssuesWithFailures.map((issue, index) => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
                     
-                    // Create a user-friendly error message
-                    const getErrorMessage = (errorCode) => {
-                      const messages = {
-                        'TIMEOUT_SPIKE': 'Transaction processing delays detected',
-                        'PSE_TIMEOUT': 'Payment gateway timeout issue',
-                        'NETWORK_ERRORS': 'Network connectivity problems',
-                        'default': 'Payment processing issue'
-                      };
-                      return messages[errorCode] || messages['default'];
-                    };
-
-                    // Create a user-friendly action message
-                    const getActionMessage = (actionType) => {
-                      const actions = {
-                        'notify_ops': 'Please contact support to address this issue',
-                        'retry': 'Retry the transaction',
-                        'default': 'Take action to resolve'
-                      };
-                      return actions[actionType] || actions['default'];
-                    };
+                    const alertId = `${issue.incidentTag}-${issue.provider}`;
+                    const isExpanded = expandedAlerts[alertId] || false;
+                    const recommendation = getRecommendation(issue.incidentTag);
                     
                     return (
-                      <Alert 
-                        key={issue.incidentTag} 
-                        severity={issue.impactLevel === 'high' ? 'error' : issue.impactLevel === 'medium' ? 'warning' : 'info'}
-                        sx={{ mb: 0 }}
-                      >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                            {index + 1}. {issue.title}
-                          </Typography>
-                          <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-                            {getErrorMessage(issue.incidentTag)} • {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
-                          </Typography>
-                          <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
-                              Recommended Action:
-                            </Typography>
-                            <Typography variant="caption" sx={{ display: 'block' }}>
-                              {getActionMessage(issue.suggestedActionType)}
-                            </Typography>
+                      <Box key={issue.incidentTag}>
+                        <Alert 
+                          severity={issue.impactLevel === 'high' ? 'error' : issue.impactLevel === 'medium' ? 'warning' : 'info'}
+                          sx={{ mb: 0 }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                                {index + 1}. {issue.title}
+                              </Typography>
+                              <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                                {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
+                              </Typography>
+                              {recommendation && (
+                                <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
+                                    Recommended Action:
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ display: 'block' }}>
+                                    {recommendation.whatToDo}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                            {recommendation && (
+                              <Button
+                                size="small"
+                                onClick={() => toggleExpandAlert(alertId)}
+                                sx={{
+                                  minWidth: 0,
+                                  p: 0.5,
+                                  ml: 1,
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s'
+                                }}
+                              >
+                                <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                              </Button>
+                            )}
                           </Box>
-                        </Box>
-                      </Alert>
+                        </Alert>
+                        {isExpanded && recommendation && (
+                          <Box sx={{ 
+                            mt: 1, 
+                            p: 2, 
+                            background: 'rgba(0, 0, 0, 0.1)', 
+                            borderRadius: '4px',
+                            mb: 1,
+                            display: 'flex',
+                            gap: 2
+                          }}>
+                            <LightbulbIcon sx={{ fontSize: 24, color: '#FF9500', flexShrink: 0, mt: 0.5 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                Steps to resolve:
+                              </Typography>
+                              <List sx={{ pl: 0, py: 0 }}>
+                                {recommendation.actions.map((action, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
+                                    <ListItemIcon sx={{ minWidth: 24 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 600, color: severityColor }}>
+                                        {idx + 1}.
+                                      </Typography>
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={action}
+                                      primaryTypographyProps={{ variant: 'caption' }}
+                                    />
+                                  </ListItem>
+                                ))}
+                              </List>
+                              <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #2D3748' }}>
+                                <Typography variant="caption" sx={{ color: '#A0AEC0', fontSize: '11px' }}>
+                                  <strong>Est. time:</strong> {recommendation.estimatedResolutionTime}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
                     );
                   })}
                 </Box>
