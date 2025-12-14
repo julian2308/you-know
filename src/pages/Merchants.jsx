@@ -413,6 +413,27 @@ const Merchants = () => {
                   {merchantIssuesWithFailures.map((issue, index) => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
                     
+                    // Create a user-friendly error message
+                    const getErrorMessage = (errorCode) => {
+                      const messages = {
+                        'TIMEOUT_SPIKE': 'Transaction processing delays detected',
+                        'PSE_TIMEOUT': 'Payment gateway timeout issue',
+                        'NETWORK_ERRORS': 'Network connectivity problems',
+                        'default': 'Payment processing issue'
+                      };
+                      return messages[errorCode] || messages['default'];
+                    };
+
+                    // Create a user-friendly action message
+                    const getActionMessage = (actionType) => {
+                      const actions = {
+                        'notify_ops': 'Please contact support to address this issue',
+                        'retry': 'Retry the transaction',
+                        'default': 'Take action to resolve'
+                      };
+                      return actions[actionType] || actions['default'];
+                    };
+                    
                     return (
                       <Alert 
                         key={issue.incidentTag} 
@@ -424,14 +445,14 @@ const Merchants = () => {
                             {index + 1}. {issue.title}
                           </Typography>
                           <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-                            {issue.description}
+                            {getErrorMessage(issue.incidentTag)} • {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
                           </Typography>
                           <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
-                              Suggested Action:
+                              Recommended Action:
                             </Typography>
                             <Typography variant="caption" sx={{ display: 'block' }}>
-                              {issue.suggestedActionType}
+                              {getActionMessage(issue.suggestedActionType)}
                             </Typography>
                           </Box>
                         </Box>
