@@ -111,15 +111,18 @@ const Providers = () => {
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 3 }}>
-          Analítica de Proveedores
+        <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+          Providers
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 3 }}>
+          List and status of all payment providers in the system.
         </Typography>
 
         {/* Filtros */}
         <Box sx={{ display: 'flex', gap: 2, mb: 4, flexDirection: { xs: 'column', md: 'row' } }}>
           <FormControl sx={{ minWidth: 250 }}>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-              Seleccionar País
+              Select Country
             </Typography>
             <Select
               value={selectedCountry}
@@ -140,7 +143,7 @@ const Providers = () => {
                 }
               }}
             >
-              <MenuItem value="">Selecciona un país</MenuItem>
+              <MenuItem value="">Select a country</MenuItem>
               {allCountries.map(country => (
                 <MenuItem key={country} value={country}>{country}</MenuItem>
               ))}
@@ -149,7 +152,7 @@ const Providers = () => {
 
           <FormControl sx={{ minWidth: 250 }} disabled={!selectedCountry}>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-              Seleccionar Provider
+              Select Provider
             </Typography>
             <Select
               value={selectedProvider}
@@ -167,7 +170,7 @@ const Providers = () => {
                 }
               }}
             >
-              <MenuItem value="">Selecciona un provider</MenuItem>
+              <MenuItem value="">Select a provider</MenuItem>
               {providersInCountry.map(provider => (
                 <MenuItem key={provider} value={provider}>{provider}</MenuItem>
               ))}
@@ -184,9 +187,9 @@ const Providers = () => {
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 icon={TrendingUpIcon}
-                title="Payins Procesados"
+                title="Processed Payins"
                 value={metrics.totalPayins}
-                subtitle="Total en período"
+                subtitle="Total in period"
                 color="#0F7AFF"
                 bgColor="rgba(15, 122, 255, 0.1)"
               />
@@ -194,9 +197,9 @@ const Providers = () => {
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 icon={CheckCircleIcon}
-                title="Tasa de Éxito"
+                title="Success Rate"
                 value={`${metrics.successRate}%`}
-                subtitle={`${metrics.successCount} exitosos`}
+                subtitle={`${metrics.successCount} successful`}
                 color="#00D084"
                 bgColor="rgba(0, 208, 132, 0.1)"
               />
@@ -204,9 +207,9 @@ const Providers = () => {
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 icon={AccountBalanceWalletIcon}
-                title="Volumen Total"
+                title="Total Volume"
                 value={metrics.totalVolume}
-                subtitle="Monto transferido"
+                subtitle="Transferred amount"
                 color="#FFB81C"
                 bgColor="rgba(255, 184, 28, 0.1)"
               />
@@ -214,9 +217,9 @@ const Providers = () => {
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 icon={SpeedIcon}
-                title="Latencia Promedio"
+                title="Average Latency"
                 value={metrics.avgLatency}
-                subtitle="Tiempo de procesamiento"
+                subtitle="Processing time"
                 color="#FF6B6B"
                 bgColor="rgba(255, 107, 107, 0.1)"
               />
@@ -228,13 +231,13 @@ const Providers = () => {
             <Grid item xs={12}>
               <Paper sx={{ p: 3, backgroundColor: '#151B2E', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-                  Información del Provider: {selectedProvider}
+                  Provider Information: {selectedProvider}
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 1 }}>
                       <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                        Payins Exitosos
+                        Successful Payins
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
                         {metrics.successCount}/{metrics.totalPayins}
@@ -244,7 +247,7 @@ const Providers = () => {
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ p: 2, backgroundColor: 'rgba(255, 59, 48, 0.1)', borderRadius: 1 }}>
                       <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                        Tasa de Fallos
+                        Failure Rate
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 700, color: '#FF3B30' }}>
                         {metrics.failureRate}%
@@ -260,8 +263,8 @@ const Providers = () => {
         <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#151B2E', border: '1px solid rgba(255,255,255,0.08)' }}>
           <Typography variant="body1" sx={{ color: '#A0AEC0' }}>
             {!selectedCountry
-              ? 'Selecciona un país para comenzar'
-              : 'Selecciona un provider para ver la analítica'}
+              ? 'Select a country to start'
+              : 'Select a provider to view analytics'}
           </Typography>
         </Paper>
       )}

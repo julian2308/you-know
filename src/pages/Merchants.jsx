@@ -150,13 +150,16 @@ const Merchants = () => {
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-          Mi Negocio
+          Merchants
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 3 }}>
+          List of merchants and their payment activity.
         </Typography>
 
-        {/* Filtro de Merchant */}
+        {/* Merchant Filter */}
         <FormControl sx={{ minWidth: 300 }}>
           <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-            Seleccionar Merchant
+            Select Merchant
           </Typography>
           <Select
             value={selectedMerchant}
@@ -174,7 +177,7 @@ const Merchants = () => {
               }
             }}
           >
-            <MenuItem value="">Selecciona tu negocio</MenuItem>
+            <MenuItem value="">Select your business</MenuItem>
             {allMerchants.map(merchant => (
               <MenuItem key={merchant} value={merchant}>{merchant}</MenuItem>
             ))}
@@ -182,67 +185,67 @@ const Merchants = () => {
         </FormControl>
       </Box>
 
-      {/* Contenido */}
+      {/* Content */}
       {selectedMerchant ? (
         <Grid container spacing={3} sx={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr 1fr 1fr', gridAutoRows: 'auto' }}>
-          {/* KPIs Grid - 4 columnas iguales en la primera fila */}
+          {/* KPIs Grid */}
           <Grid item xs={12} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
             <MetricCard
               icon={TrendingUpIcon}
-              title="Payins Procesados"
+              title="Processed Payins"
               value={metrics.totalPayins}
-              subtitle="Total en período"
+              subtitle="Total in period"
               color="#0F7AFF"
               bgColor="rgba(15, 122, 255, 0.1)"
             />
             <MetricCard
               icon={CheckCircleIcon}
-              title="Tasa de Éxito"
+              title="Success Rate"
               value={`${metrics.successRate}%`}
-              subtitle={`${metrics.successCount} exitosos`}
+              subtitle={`${metrics.successCount} successful`}
               color="#00D084"
               bgColor="rgba(0, 208, 132, 0.1)"
             />
             <MetricCard
               icon={AccountBalanceWalletIcon}
-              title="Volumen Total"
+              title="Total Volume"
               value={metrics.totalVolume}
-              subtitle="Monto transferido"
+              subtitle="Transferred amount"
               color="#FFB81C"
               bgColor="rgba(255, 184, 28, 0.1)"
             />
             <MetricCard
               icon={SpeedIcon}
-              title="Latencia Promedio"
+              title="Average Latency"
               value={metrics.avgLatency}
-              subtitle="Tiempo de procesamiento"
+              subtitle="Processing time"
               color={metrics.avgLatency > 1 ? '#FF9500' : '#00D084'}
               bgColor={metrics.avgLatency > 1 ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 208, 132, 0.1)'}
             />
           </Grid>
 
-          {/* ¿Qué me afecta? */}
+          {/* What affects me? */}
           <Grid item xs={12} sx={{ display: 'flex', flexDirection: 'column' }}>
             <Paper sx={{ p: 3, backgroundColor: '#151B2E', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                ¿Qué me afecta?
+                What affects me?
               </Typography>
               
               {metrics.failedPayins > 0 ? (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Tienes <strong>{metrics.failedPayins}</strong> transacciones fallidas ({metrics.failureRate}% de tasa de fallo)
+                  You have <strong>{metrics.failedPayins}</strong> failed transactions ({metrics.failureRate}% failure rate)
                 </Alert>
               ) : (
                 <Alert severity="success" sx={{ mb: 2 }}>
-                  ✓ Todas tus transacciones se procesaron correctamente
+                  ✓ All your transactions were processed successfully
                 </Alert>
               )}
 
               <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 2, fontWeight: 600 }}>
-                Providers disponibles: {merchantProviders.join(', ')}
+                Available providers: {merchantProviders.join(', ')}
               </Typography>
 
-              {/* Estado por provider */}
+              {/* Provider status */}
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, flex: 1 }}>
                 {merchantProviders.map(provider => {
                   const pStatus = providerStatus[provider];
@@ -262,7 +265,7 @@ const Merchants = () => {
                               {provider}
                             </Typography>
                             <Chip
-                              label={isHealthy ? '✓ Sano' : '✗ Problemas'}
+                              label={isHealthy ? '✓ Healthy' : '✗ Issues'}
                               size="small"
                               sx={{
                                 background: isHealthy ? '#00D084' : '#FF3B30',
@@ -272,11 +275,11 @@ const Merchants = () => {
                             />
                           </Box>
                           <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                            {pStatus.total} transacciones • Tasa de fallo: {failRate}%
+                            {pStatus.total} transactions • Failure rate: {failRate}%
                           </Typography>
                           {pStatus.failed > 0 && (
                             <Typography variant="caption" sx={{ color: '#FF9500', display: 'block' }}>
-                              Errores: {[...new Set(pStatus.errors)].join(', ')}
+                              Errors: {[...new Set(pStatus.errors)].join(', ')}
                             </Typography>
                           )}
                         </Paper>
@@ -287,17 +290,17 @@ const Merchants = () => {
             </Paper>
           </Grid>
 
-          {/* ¿Debo hacer algo? */}
+          {/* Should I do something? */}
           <Grid item xs={12} sx={{ display: 'flex', flexDirection: 'column' }}>
             <Paper sx={{ p: 3, backgroundColor: '#151B2E', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                ¿Debo hacer algo?
+                Should I do something?
               </Typography>
 
               {topErrors.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Typography variant="body2" sx={{ color: '#A0AEC0', fontWeight: 600 }}>
-                    Top {topErrors.length} errores más comunes:
+                    Top {topErrors.length} most common errors:
                   </Typography>
                   {topErrors.map((error, index) => {
                     const severity = error.recommendation.severity;
@@ -318,14 +321,14 @@ const Merchants = () => {
                       >
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                            {index + 1}. {error.recommendation.title} ({error.count} ocurrencias)
+                            {index + 1}. {error.recommendation.title} ({error.count} occurrences)
                           </Typography>
                           <Typography variant="caption" sx={{ display: 'block', mb: 1, color: 'inherit', opacity: 0.9 }}>
                             {error.recommendation.userMessage}
                           </Typography>
                           <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityConfig.color}` }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityConfig.color }}>
-                              Qué hacer:
+                              What to do:
                             </Typography>
                             <Typography variant="caption" sx={{ display: 'block', color: 'inherit', fontStyle: 'italic' }}>
                               {error.recommendation.whatToDo}
@@ -338,16 +341,16 @@ const Merchants = () => {
                 </Box>
               ) : metrics.failureRate > 0 ? (
                 <Alert severity="info" sx={{ mb: 0 }}>
-                  ℹ️ Tienes transacciones fallidas pero sin detalles de error disponibles.
+                  ℹ️ You have failed transactions but no error details available.
                 </Alert>
               ) : (
                 <Alert severity="success" sx={{ mb: 0 }}>
-                  ✓ Excelente. Todas tus transacciones se procesaron correctamente. Mantén monitoreo regular.
+                  ✓ Excellent. All your transactions were processed successfully. Keep regular monitoring.
                 </Alert>
               )}
 
               <Typography variant="caption" sx={{ color: '#A0AEC0', mt: 2 }}>
-                Última actualización: {new Date().toLocaleTimeString()}
+                Last update: {new Date().toLocaleTimeString()}
               </Typography>
             </Paper>
           </Grid>
@@ -355,7 +358,7 @@ const Merchants = () => {
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#151B2E', border: '1px solid rgba(255,255,255,0.08)', mt: 2 }}>
           <Typography variant="body1" sx={{ color: '#A0AEC0' }}>
-            Selecciona tu negocio para ver el estado
+            Select your business to see the status
           </Typography>
         </Paper>
       )}

@@ -65,6 +65,56 @@ const Dashboard = () => {
     return 'F';
   };
 
+  // Generar alertas inteligentes por proveedor
+  const generateAlerts = () => {
+    const alerts = [];
+    const providerErrors = {};
+
+    // Agrupar errores por proveedor
+    payins.forEach(payin => {
+      if (payin.status === 'FAILED') {
+        if (!providerErrors[payin.provider]) {
+          providerErrors[payin.provider] = [];
+        }
+        providerErrors[payin.provider].push(payin);
+      }
+    });
+
+    // Crear alertas basadas en errores
+    Object.entries(providerErrors).forEach(([provider, failedPayins]) => {
+      const failureRate = (failedPayins.length / payins.filter(p => p.provider === provider).length) * 100;
+      const totalImpact = failedPayins.reduce((sum, p) => sum + p.amount, 0);
+
+      // Determinar severidad basada en el score de seguridad y tasa de fallo
+      let severity = 'info';
+      if (securityScore < 60 || failureRate > 50) severity = 'critical';
+      else if (failureRate > 25 || securityScore < 80) severity = 'warning';
+
+      const errorType = failedPayins[0].error_code;
+      const actions = [
+        'Review detailed error logs',
+        'Contact technical support'
+      ];
+
+      alerts.push({
+        id: `${provider}-${Date.now()}`,
+        provider,
+        severity,
+        errorCode: errorType,
+        errorMessage: failedPayins[0].error_message,
+        failureCount: failedPayins.length,
+        failureRate: failureRate.toFixed(1),
+        totalImpact,
+        actions,
+        affectedPayins: failedPayins
+      });
+    });
+
+    return alerts.sort((a, b) => {
+      const severityOrder = { critical: 0, warning: 1, info: 2 };
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    });
+  };
   // Alertas desde el backend (incidents)
   const alerts = overview?.activeIssues || [];
 
@@ -85,6 +135,42 @@ const Dashboard = () => {
   };
 
   return (
+    <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+              Payins Dashboard
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
+              Transfer Processing & Routing System • Real-time monitoring of merchant payments
+            </Typography>
+          </Box>
+          <FormControl sx={{ minWidth: 200 }}>
+            <Select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              sx={{
+                backgroundColor: '#151B2E',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 1,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#0F7AFF'
+                }
+              }}
+            >
+              <MenuItem value="ALL">All countries</MenuItem>
+              {allCountries.map(country => (
+                <MenuItem key={country} value={country}>{country}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
     <Box sx={{ p: 4, backgroundColor: '#0D1B2A', color: '#E2E8F0', minHeight: '100vh' }}>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Dashboard</Typography>
@@ -102,16 +188,16 @@ const Dashboard = () => {
         </FormControl>
       </Box>
 
-      {/* Card de Alertas Rápido (eliminada, ahora solo en Topbar) */}
+      {/* Quick Alerts Card (removed, now only in Topbar) */}
 
       {/* KPIs Grid */}
       <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' } }}>
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={TrendingUpIcon}
-            title="Payins Procesados"
+            title="Processed Payins"
             value={kpis.totalPayins}
-            subtitle="Total en período"
+            subtitle="Total in period"
             color="#0F7AFF"
             bgColor="rgba(15, 122, 255, 0.1)"
           />
@@ -119,9 +205,9 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={CheckCircleIcon}
-            title="Tasa de Éxito"
+            title="Success Rate"
             value={`${kpis.successRate}%`}
-            subtitle="Payins completados"
+            subtitle="Completed payins"
             color="#00D084"
             bgColor="rgba(0, 208, 132, 0.1)"
           />
@@ -129,9 +215,9 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={AccountBalanceWalletIcon}
-            title="Volumen Total"
+            title="Total Volume"
             value={kpis.totalVolume}
-            subtitle="Monto transferido"
+            subtitle="Transferred amount"
             color="#FFB81C"
             bgColor="rgba(255, 184, 28, 0.1)"
           />
@@ -139,23 +225,23 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={SpeedIcon}
-            title="Latencia Promedio"
+            title="Average Latency"
             value={kpis.avgLatency}
-            subtitle="Tiempo de procesamiento"
+            subtitle="Processing time"
             color="#FF6B6B"
             bgColor="rgba(255, 107, 107, 0.1)"
           />
         </Grid>
       </Grid>
 
-      {/* Información de Proveedores */}
+      {/* Providers Info */}
       <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '40% 58%' } }}>
         <Grid item xs={12} md={3}>
           <Paper sx={{ p: 3, height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.2, mb: 3 }}>
               <SwapCallsIcon sx={{ color: '#0F7AFF', fontSize: 28, mr: 1 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Proveedores
+                Providers
               </Typography>
             </Box>
             <Box sx={{ space: 2 }}>
@@ -185,7 +271,7 @@ const Dashboard = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.2, mb: 3 }}>
               <SecurityIcon sx={{ color: '#00D084', fontSize: 28, mr: 1 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Estado de Seguridad
+                Security Status
               </Typography>
             </Box>
             <Grid container spacing={2} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: { xs: 'column', md: 'row' } }}>
@@ -193,7 +279,7 @@ const Dashboard = () => {
                 <Box sx={{ p: 4, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-around', alignItems: 'center', gap: 4 }}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
-                      Score Seguridad
+                      Security Score
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
                       {kpis.securityGrade}
@@ -205,13 +291,13 @@ const Dashboard = () => {
                   <Box sx={{ width: { xs: '80px', md: '1px' }, height: { xs: '1px', md: '80px' }, backgroundColor: 'rgba(0, 208, 132, 0.3)' }} />
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
-                      Payins Verificados
+                      Verified Payins
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
                       {succeeded}/{totalPayins}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                      Transacciones exitosas
+                      Successful transactions
                     </Typography>
                   </Box>
                 </Box>
@@ -219,16 +305,16 @@ const Dashboard = () => {
               <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: 'auto' } }}>
                 <Box sx={{ p: 2, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '1px solid rgba(15, 122, 255, 0.3)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1, fontWeight: 600 }}>
-                    Aporte al Score:
+                    Score Contribution:
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
-                    • Tasa éxito: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.success}/60</span> pts
+                    • Success rate: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.success}/60</span> pts
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 0.5 }}>
-                    • Latencia/Timeouts: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.latency}/20</span> pts
+                    • Latency/Timeouts: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.latency}/20</span> pts
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block' }}>
-                    • Diversificación: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.diversification}/20</span> pts
+                    • Diversification: <span style={{ color: '#00D084', fontWeight: 600 }}>{securityFactors.diversification}/20</span> pts
                   </Typography>
                 </Box>
               </Grid>
@@ -237,10 +323,10 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Payins Recientes */}
+      {/* Recent Payins */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-          Eventos de Payin Recientes
+          Recent Payin Events
         </Typography>
         <Box sx={{ 
           overflowX: 'auto',
@@ -269,12 +355,12 @@ const Dashboard = () => {
             <thead>
               <tr>
                 <th>Payin ID</th>
-                <th>Comercio</th>
-                <th>Monto</th>
-                <th>Proveedor</th>
-                <th>País</th>
-                <th>Estado</th>
-                <th>Detalles</th>
+                <th>Merchant</th>
+                <th>Amount</th>
+                <th>Provider</th>
+                <th>Country</th>
+                <th>Status</th>
+                <th>Details</th>
               </tr>
             </thead>
             <tbody>
@@ -290,12 +376,12 @@ const Dashboard = () => {
                       {payin.status === 'SUCCEEDED' ? (
                         <>
                           <CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} />
-                          <Typography variant="body2">Exitoso</Typography>
+                          <Typography variant="body2">Successful</Typography>
                         </>
                       ) : (
                         <>
                           <ErrorIcon sx={{ fontSize: 18, color: '#FF3B30' }} />
-                          <Typography variant="body2">Fallido</Typography>
+                          <Typography variant="body2">Failed</Typography>
                         </>
                       )}
                     </Box>
