@@ -219,21 +219,46 @@ const Merchants = () => {
 
   // Filtrar los datos del overview para el merchant seleccionado
   const getMerchantData = () => {
-    if (!selectedMerchant || !overview?.activeIssues || !allMerchantsData) {
+    // Crear objeto vacío por defecto para evitar null
+    const emptyMerchant = {
+      merchantId: selectedMerchant,
+      from: overview?.from,
+      to: overview?.to,
+      activeIssues: [],
+      totalEvents: 0,
+      totalApproved: 0,
+      totalSuccess: 0,
+      totalFailed: 0,
+      avgLatencyMs: 0,
+    };
+
+    if (!selectedMerchant) {
       return null;
     }
 
+    if (!allMerchantsData) {
+      return emptyMerchant;
+    }
 
     // Obtener el nombre del merchant desde allMerchantsData
     const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
     const selectedMerchantData = merchantsList.find(m => m.merchantId === selectedMerchant);
+    
     if (!selectedMerchantData) {
-      return null;
+      return emptyMerchant;
     }
+
+    // Si overview aún está cargando, retornar objeto vacío válido
+    if (!overview?.activeIssues) {
+      return emptyMerchant;
+    }
+
     // Filtrar los activeIssues para el merchant seleccionado por nombre
     const merchantIssues = overview.activeIssues.filter(issue => issue.merchantName === selectedMerchantData.merchantName);
+    
+    // Si no hay issues, retornar un objeto vacío pero válido
     if (merchantIssues.length === 0) {
-      return null;
+      return emptyMerchant;
     }
 
     // Construir el objeto merchantDetail con los datos filtrados
@@ -270,8 +295,21 @@ const Merchants = () => {
 
   const merchantDetail = getMerchantData();
 
+  // Protección adicional: si merchantDetail es null pero hay un merchant seleccionado, crear objeto vacío
+  const safeMerchantDetail = merchantDetail || (selectedMerchant ? {
+    merchantId: selectedMerchant,
+    from: overview?.from,
+    to: overview?.to,
+    activeIssues: [],
+    totalEvents: 0,
+    totalApproved: 0,
+    totalSuccess: 0,
+    totalFailed: 0,
+    avgLatencyMs: 0,
+  } : null);
+
   // Crear mock events con status correcto (incluyendo CANCELLED para USER)
-  const merchantMockEvents = (merchantDetail?.activeIssues || []).flatMap(issue => {
+  const merchantMockEvents = (safeMerchantDetail?.activeIssues || []).flatMap(issue => {
     return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
       let status = 'SUCCEEDED';
       
@@ -316,7 +354,7 @@ const Merchants = () => {
 
   // Obtener issues del merchant seleccionado
   // Intentar con 'activeIssues' primero, luego 'issues' como fallback
-  const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
+  const merchantIssues = safeMerchantDetail?.activeIssues || safeMerchantDetail?.issues || [];
   
   // Filtrar solo issues con fallos reales (excluyendo canceladas por usuario)
   const merchantIssuesWithFailures = merchantIssues.filter(issue => {
@@ -401,25 +439,84 @@ const Merchants = () => {
 
     // Obtener todos los providers del merchant seleccionado desde allMerchantsData
     if (selectedMerchant && allMerchantsData) {
-      // El endpoint puede devolver un array directo o un objeto con propiedad merchants
-      const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
-      
-      // Obtener el nombre del merchant del overview para hacer matching
-      const selectedMerchantName = (overview?.activeIssues || []).find(i => i.merchantId === selectedMerchant)?.merchantName;
-      
-      const merchantData = merchantsList.find(m => m.merchantName === selectedMerchantName);
-      
-      if (merchantData && merchantData.providers) {
-        merchantData.providers.forEach(provider => {
-          const providerName = provider.provider;
-          status[providerName] = {
-            total: 0,
-            failed: 0,
-            latencyMs: 0,
-            errors: []
-          };
-        });
+      try {
+        // El endpoint puede devolver un array directo o un objeto con propiedad merchants
+        const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
+        
+        console.log('=== PROVIDER LOOKUP DEBUG ===');
+        console.log('All merchants data received:', allMerchantsData);
+        console.log('Merchants list:', merchantsList);
+        console.log('Merchants list length:', merchantsList.length);
+        
+        // Obtener el nombre del merchant del overview para hacer matching
+        const selectedMerchantName = (overview?.activeIssues || []).find(i => i.merchantId === selectedMerchant)?.merchantName;
+        
+        console.log('Selected merchant ID:', selectedMerchant);
+        console.log('Selected merchant name:', selectedMerchantName);
+        console.log('Available merchant names in API:', merchantsList.map(m => m.merchantName || m.name || m.id));
+        
+        // Try to find merchant by name, with case-insensitive matching as fallback
+        let merchantData = merchantsList.find(m => m.merchantName === selectedMerchantName);
+        
+        if (!merchantData && selectedMerchantName) {
+          // Fallback: case-insensitive match
+          merchantData = merchantsList.find(m => 
+            (m.merchantName || '').toLowerCase() === selectedMerchantName.toLowerCase()
+          );
+        }
+        
+        if (!merchantData && merchantsList.length > 0) {
+          // Another fallback: try matching by ID
+          merchantData = merchantsList.find(m => m.merchantId === selectedMerchant || m.id === selectedMerchant);
+        }
+        
+        console.log('Merchant data found:', merchantData);
+        
+        if (merchantData) {
+          // Handle different possible provider property structures
+          const providersList = merchantData.providers || merchantData.paymentProviders || merchantData.payment_providers || [];
+          
+          console.log('Providers list from API:', providersList);
+          console.log('Providers list type:', typeof providersList);
+          console.log('Providers list is array:', Array.isArray(providersList));
+          
+          if (Array.isArray(providersList) && providersList.length > 0) {
+            providersList.forEach(provider => {
+              // Provider can be an object with 'provider' property or just a string
+              let providerName = null;
+              
+              if (typeof provider === 'string') {
+                providerName = provider;
+              } else if (typeof provider === 'object' && provider !== null) {
+                providerName = provider.provider || provider.name || provider.id || provider.providerName;
+              }
+              
+              if (providerName) {
+                status[providerName] = {
+                  total: 0,
+                  failed: 0,
+                  latencyMs: 0,
+                  errors: []
+                };
+                console.log('✓ Initialized provider:', providerName);
+              }
+            });
+          } else {
+            console.warn('Providers list is empty or not an array');
+          }
+        } else {
+          console.warn('Merchant data not found for selected merchant:', selectedMerchantName);
+          if (merchantsList.length > 0) {
+            console.log('First merchant in list:', merchantsList[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing providers:', error);
       }
+    } else {
+      console.log('=== PROVIDER LOOKUP SKIPPED ===');
+      console.log('selectedMerchant:', selectedMerchant);
+      console.log('allMerchantsData:', allMerchantsData);
     }
 
     // Agregar/actualizar conteos de transacciones del merchant detail
@@ -427,19 +524,27 @@ const Merchants = () => {
       if (!status[issue.provider]) {
         status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
       }
-      // Contar 1 por cada issue (no por totalEvents que son los intentos)
-      status[issue.provider].total += 1;
+      // Contar totalEvents (intentos totales) en lugar de 1 issue
+      status[issue.provider].total += issue.totalEvents || 0;
       
       // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
       const isCancelled = issue.mainErrorCategory === 'USER';
       if (!isCancelled) {
-        status[issue.provider].failed += 1; // Contar 1 por issue fallido, no por failedEvents
+        // Contar failedEvents (intentos fallidos) en lugar de 1 issue
+        status[issue.provider].failed += issue.failedEvents || 0;
       }
+      
+      // Actualizar latency
+      status[issue.provider].latencyMs = issue.avgLatencyMs || status[issue.provider].latencyMs;
       
       // Solo agregar error si no es cancelado por usuario
       if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
     });
 
+    console.log('=== FINAL PROVIDER STATUS ===');
+    console.log('Final provider status:', status);
+    console.log('Provider count:', Object.keys(status).length);
+    console.log('Provider names:', Object.keys(status));
     return status;
   };
 
@@ -448,18 +553,35 @@ const Merchants = () => {
   // Obtener proveedor más utilizado
   const getMostUsedProvider = () => {
     if (Object.keys(providerStatus).length === 0) return null;
-    return Object.entries(providerStatus).reduce((prev, current) => 
+    const activeProviders = Object.entries(providerStatus)
+      .filter(([_, status]) => status.total > 0);
+    
+    if (activeProviders.length === 0) return null;
+    
+    return activeProviders.reduce((prev, current) => 
       (prev[1].total > current[1].total) ? prev : current
-    )[0];
+    )[0] || null;
   };
 
   const mostUsedProvider = getMostUsedProvider();
   const availableProviders = Object.keys(providerStatus).sort();
 
   // Ordenar providers por número de transacciones (de mayor a menor)
+  // Los que tienen transacciones primero, luego los demás
   const sortedProviders = Object.entries(providerStatus)
-    .sort((a, b) => b[1].total - a[1].total)
+    .sort((a, b) => {
+      // Primero ordenar por total de transacciones (descendente)
+      if (a[1].total !== b[1].total) {
+        return b[1].total - a[1].total;
+      }
+      // Si tienen el mismo total, ordenar alfabéticamente
+      return a[0].localeCompare(b[0]);
+    })
     .map(([provider]) => provider);
+
+  console.log('All providers:', Object.keys(providerStatus));
+  console.log('Sorted providers:', sortedProviders);
+  console.log('Most used provider:', mostUsedProvider);
 
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
     <Paper sx={{
@@ -609,7 +731,7 @@ const Merchants = () => {
       </Box>
 
       {/* Content */}
-      {selectedMerchant ? (
+      {selectedMerchant && safeMerchantDetail ? (
         <Grid container spacing={3} sx={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr 1fr 1fr', gridAutoRows: 'auto' }}>
           {/* KPIs Grid - 4 columnas iguales en la primera fila */}
           <Grid item xs={12} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
@@ -674,6 +796,8 @@ const Merchants = () => {
                   const failRate = pStatus.total > 0 ? ((pStatus.failed / pStatus.total) * 100).toFixed(1) : '0';
                   const isHealthy = pStatus.failed === 0;
                   const isMostUsed = provider === mostUsedProvider;
+                  const latencyMs = pStatus.latencyMs || 0;
+                  const latencyDisplay = latencyMs > 0 ? (latencyMs / 1000).toFixed(2) : 'N/A';
 
                   return (
                     <Box key={provider}>
@@ -702,7 +826,7 @@ const Merchants = () => {
                             {pStatus.total} transactions • Failure rate: {failRate}%
                           </Typography>
                           <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                            Latency: {(pStatus.latencyMs / 1000).toFixed(2)}s
+                            Latency: {latencyDisplay === 'N/A' ? 'N/A' : latencyDisplay + 's'}
                           </Typography>
                           {pStatus.failed > 0 && (
                             <Typography variant="caption" sx={{ color: '#FF9500', display: 'block' }}>
@@ -723,55 +847,61 @@ const Merchants = () => {
                 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                   {sortedProviders.length > 0 ? (
-                    sortedProviders.map((provider, index) => (
-                      <Box
-                        key={provider}
-                        sx={{
-                          p: 2,
-                          backgroundColor: index === 0 ? 'rgba(255, 184, 28, 0.15)' : 'rgba(0, 208, 132, 0.1)',
-                          border: index === 0 ? '2px solid rgba(255, 184, 28, 0.4)' : '1px solid rgba(0, 208, 132, 0.3)',
-                          borderRadius: 1.5,
-                          minWidth: '160px',
-                          textAlign: 'center',
-                          position: 'relative',
-                          flex: '0 1 auto'
-                        }}
-                      >
-                        {index === 0 && (
-                          <Box sx={{
-                            position: 'absolute',
-                            top: -10,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            backgroundColor: '#FFB81C',
-                            color: '#000',
-                            px: 1.5,
-                            py: 0.3,
-                            borderRadius: '12px',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap'
-                          }}>
-                            ⭐ Most Used
-                          </Box>
-                        )}
-                        <Typography variant="body2" sx={{ color: index === 0 ? '#FFB81C' : '#00D084', fontWeight: 700, mb: 1.5, mt: index === 0 ? 1.5 : 0 }}>
-                          {provider}
-                        </Typography>
-                        <Chip
-                          label={`Transactions: ${providerStatus[provider].total}`}
-                          size="small"
+                    sortedProviders.map((provider) => {
+                      const providerTotal = providerStatus[provider].total;
+                      const isMostUsed = provider === mostUsedProvider && providerTotal > 0;
+                      const hasNoTransactions = providerTotal === 0;
+                      
+                      return (
+                        <Box
+                          key={provider}
                           sx={{
-                            backgroundColor: index === 0 ? '#FFB81C' : '#00D084',
-                            color: index === 0 ? '#000' : '#fff',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            width: '100%',
-                            justifyContent: 'center'
+                            p: 2,
+                            backgroundColor: isMostUsed ? 'rgba(255, 184, 28, 0.15)' : hasNoTransactions ? 'rgba(160, 174, 192, 0.05)' : 'rgba(0, 208, 132, 0.1)',
+                            border: isMostUsed ? '2px solid rgba(255, 184, 28, 0.4)' : hasNoTransactions ? '1px solid rgba(160, 174, 192, 0.3)' : '1px solid rgba(0, 208, 132, 0.3)',
+                            borderRadius: 1.5,
+                            minWidth: '160px',
+                            textAlign: 'center',
+                            position: 'relative',
+                            flex: '0 1 auto'
                           }}
-                        />
-                      </Box>
-                    ))
+                        >
+                          {isMostUsed && (
+                            <Box sx={{
+                              position: 'absolute',
+                              top: -10,
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              backgroundColor: '#FFB81C',
+                              color: '#000',
+                              px: 1.5,
+                              py: 0.3,
+                              borderRadius: '12px',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap'
+                            }}>
+                              ⭐ Most Used
+                            </Box>
+                          )}
+                          <Typography variant="body2" sx={{ color: isMostUsed ? '#FFB81C' : hasNoTransactions ? '#A0AEC0' : '#00D084', fontWeight: 700, mb: 1.5, mt: isMostUsed ? 1.5 : 0 }}>
+                            {provider}
+                          </Typography>
+                          <Chip
+                            label={hasNoTransactions ? 'No transactions' : `Transactions: ${providerTotal}`}
+                            size="small"
+                            sx={{
+                              backgroundColor: isMostUsed ? '#FFB81C' : hasNoTransactions ? '#2D3748' : '#00D084',
+                              color: isMostUsed ? '#000' : '#fff',
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              width: '100%',
+                              justifyContent: 'center'
+                            }}
+                          />
+                        </Box>
+                      );
+                    })
                   ) : (
                     <Typography variant="caption" sx={{ color: '#A0AEC0', fontStyle: 'italic' }}>
                       No providers available
