@@ -1,38 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Grid, Paper, Typography, LinearProgress, FormControl, Select, MenuItem } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
-import { mockData } from '../data/mockData';
+import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
 
 const Providers = () => {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('');
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Obtener lista de países únicos
-  const allCountries = Array.from(new Set(mockData.payinEvents.map(p => p.country))).sort();
+  const from = '2025-12-13T08:00:00';
+  const to = '2025-12-13T12:00:00';
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const url = OVERVIEW_ENDPOINT(from, to);
+        const data = await apiClient.get(url);
+        setOverview(data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Obtener lista de países únicos desde activeIssues
+  const allCountries = Array.from(
+    new Set((overview?.activeIssues || []).map(i => i.countryCode))
+  ).filter(Boolean).sort();
 
   // Obtener providers para el país seleccionado
   const providersInCountry = selectedCountry
-    ? Array.from(new Set(
-        mockData.payinEvents
-          .filter(p => p.country === selectedCountry)
-          .map(p => p.provider)
-      )).sort()
+    ? Array.from(
+        new Set(
+          (overview?.activeIssues || [])
+            .filter(i => i.countryCode === selectedCountry)
+            .map(i => i.provider)
+        )
+      ).sort()
     : [];
 
-  // Filtrar payins por país y provider
-  const filteredPayins = selectedCountry && selectedProvider
-    ? mockData.payinEvents.filter(
-        p => p.country === selectedCountry && p.provider === selectedProvider
+  // Filtrar issues por país y provider
+  const filteredIssues = selectedCountry && selectedProvider
+    ? (overview?.activeIssues || []).filter(
+        i => i.countryCode === selectedCountry && i.provider === selectedProvider
       )
     : [];
 
   // Calcular KPIs del provider
   const calculateProviderMetrics = () => {
-    if (filteredPayins.length === 0) {
+    if (filteredIssues.length === 0) {
       return {
         totalPayins: 0,
         successRate: 0,
@@ -44,21 +69,22 @@ const Providers = () => {
       };
     }
 
-    const succeeded = filteredPayins.filter(p => p.status === 'SUCCEEDED').length;
-    const failed = filteredPayins.filter(p => p.status === 'FAILED').length;
-    const total = filteredPayins.length;
-    const successRate = ((succeeded / total) * 100).toFixed(1);
-    const totalVolume = filteredPayins.reduce((sum, p) => sum + p.amount, 0);
-    const avgLatency = (filteredPayins.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / total).toFixed(2);
-    const failureRate = ((failed / total) * 100).toFixed(1);
+    const totalEvents = filteredIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+    const totalFailed = filteredIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    const totalSuccess = totalEvents - totalFailed;
+    const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
+    const avgLatency = filteredIssues.length > 0 
+      ? (filteredIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / filteredIssues.length / 1000).toFixed(2)
+      : '0.00';
+    const failureRate = totalEvents > 0 ? ((totalFailed / totalEvents) * 100).toFixed(1) : '0.0';
 
     return {
-      totalPayins: total,
+      totalPayins: totalEvents,
       successRate: parseFloat(successRate),
-      failedPayins: failed,
-      totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
+      failedPayins: totalFailed,
+      totalVolume: '$0.0K',
       avgLatency: `${avgLatency}s`,
-      successCount: succeeded,
+      successCount: totalSuccess,
       failureRate: parseFloat(failureRate)
     };
   };
@@ -107,6 +133,14 @@ const Providers = () => {
     </Paper>
   );
 
+  if (loading) {
+    return (
+      <Box sx={{ p: 6, textAlign: 'center' }}>
+        <Typography>Loading data...</Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
@@ -128,7 +162,7 @@ const Providers = () => {
               value={selectedCountry}
               onChange={(e) => {
                 setSelectedCountry(e.target.value);
-                setSelectedProvider(''); // Reset provider cuando cambia país
+                setSelectedProvider('');
               }}
               sx={{
                 backgroundColor: '#151B2E',
@@ -255,6 +289,42 @@ const Providers = () => {
                     </Box>
                   </Grid>
                 </Grid>
+
+                {/* Merchant Issues for this Provider */}
+                {filteredIssues.length > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 2, color: '#fff' }}>
+                      Active Issues:
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {filteredIssues.map((issue, idx) => (
+                        <Grid item xs={12} key={idx}>
+                          <Box sx={{ 
+                            p: 2, 
+                            backgroundColor: 'rgba(255, 149, 0, 0.05)',
+                            border: `1px solid rgba(255, 149, 0, 0.2)`,
+                            borderRadius: 1
+                          }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: '#fff' }}>
+                                {issue.merchantName}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#FF9500', fontWeight: 600 }}>
+                                {issue.incidentTag}
+                              </Typography>
+                            </Box>
+                            <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                              {issue.totalEvents} events • {issue.failedEvents} failed • Latency: {(issue.avgLatencyMs / 1000).toFixed(2)}s
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                              {issue.description}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
               </Paper>
             </Grid>
           </Grid>
