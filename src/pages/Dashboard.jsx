@@ -310,7 +310,7 @@ const Dashboard = () => {
       </Grid>
 
       {/* Información de Proveedores */}
-      <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '40% 60%' } }}>
+      <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '40% 58%' } }}>
         <Grid item xs={12} md={3}>
           <Paper sx={{ p: 3, height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.2, mb: 3 }}>
