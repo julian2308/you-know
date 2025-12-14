@@ -178,6 +178,7 @@ const Alerts = () => {
         const data = await apiClient.get(url);
 
         // Map activeIssues to alerts format - only include issues with failures (excluding user-cancelled)
+        // Current alerts are all warnings. Critical alerts will come from a separate table in the future.
         const allProcessedAlerts = (data?.activeIssues || [])
           .filter(issue => {
             const isCancelled = issue.mainErrorCategory === 'USER';
@@ -187,7 +188,7 @@ const Alerts = () => {
           .map(issue => ({
             id: `${issue.merchantId}-${issue.incidentTag}`,
             provider: issue.provider,
-            isCritical: issue.impactLevel === 'high',
+            isCritical: false, // All current alerts are warnings. Critical alerts will come from separate table.
             severity: 'warning',
             errorCode: issue.incidentTag,
             errorMessage: issue.title,
