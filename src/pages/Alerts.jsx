@@ -198,20 +198,25 @@ const Alerts = () => {
     return matchProvider && matchIncident && matchMerchant && matchCountry;
   });
 
-  const getSeverityColor = (severity, isCritical) => {
+  const getSeverityColor = (alert) => {
+    // Usar la propiedad isCritical de la alerta
+    const isCritical = alert?.isCritical === true;
+    
     if (isCritical) {
       return {
         bg: 'rgba(255, 59, 48, 0.1)',
         border: '#FF3B30',
         icon: '#FF3B30',
-        text: 'CRITICAL'
+        text: 'CRITICAL',
+        severity: 'CRITICAL'
       };
     }
     return {
       bg: 'rgba(255, 149, 0, 0.1)',
       border: '#FF9500',
       icon: '#FF9500',
-      text: 'WARNING'
+      text: 'WARNING',
+      severity: 'WARNING'
     };
   };
 
@@ -395,7 +400,7 @@ const Alerts = () => {
             </TableHead>
             <TableBody>
               {filteredAlerts.map(alert => {
-                const colors = getSeverityColor(alert.severity, alert.isCritical);
+                const colors = getSeverityColor(alert);
                 const isExpanded = expandedAlerts[alert.id] || false;
                 const recommendation = getRecommendation(alert.errorCode, alert.mainErrorCategory, alert.totalEvents, alert.mainErrorType);
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { AppBar, Toolbar, IconButton, Box, Badge, Menu, MenuItem, Typography, Divider, useMediaQuery, useTheme } from '@mui/material';
 import { Notifications, Menu as MenuIcon } from '@mui/icons-material';
 import ErrorIcon from '@mui/icons-material/Error';
+import logoYuno from '@/assets/LOGOS/YUNO_ISO_BLUE.png';
 
 const Topbar = ({ alerts = [], onMenuClick }) => {
   const theme = useTheme();
@@ -20,9 +21,9 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
     <AppBar
       position="static"
       sx={{ 
-        backgroundColor: 'rgba(21, 27, 46, 0.8)',
+        backgroundColor: 'rgba(21, 27, 46, 0.9)',
         backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        borderBottom: '1px solid rgba(0, 102, 255, 0.15)',
         color: '#FFFFFF'
       }}
     >
@@ -31,16 +32,16 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
           <IconButton
             color="inherit"
             onClick={onMenuClick}
-            sx={{ mr: 1, color: '#0F7AFF' }}
+            sx={{ mr: 1, color: '#0066FF' }}
           >
             <MenuIcon />
           </IconButton>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <span style={{
-            color: '#0F7AFF',
+            color: '#0066FF',
             fontWeight: 800,
-            fontSize: 20,
+            fontSize: 18,
             letterSpacing: 1,
             fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
           }}>
@@ -48,7 +49,7 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
           </span>
         </Box>
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton sx={{ color: '#A0AEC0' }} onClick={handleOpen} aria-label="critical alerts">
+        <IconButton sx={{ color: '#0066FF', '&:hover': { backgroundColor: 'rgba(0, 102, 255, 0.1)' } }} onClick={handleOpen} aria-label="critical alerts">
           <Badge badgeContent={alerts.length} color="error">
             <Notifications />
           </Badge>
@@ -62,12 +63,12 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
               minWidth: 320,
               background: '#151B2E',
               color: '#fff',
-              border: '1px solid #222',
+              border: '1px solid rgba(0, 102, 255, 0.2)',
               mt: 1.5
             }
           }}
         >
-          <Typography sx={{ px: 2, pt: 1, fontWeight: 700, color: '#FF3B30' }}>
+          <Typography sx={{ px: 2, pt: 1, fontWeight: 700, color: '#0066FF' }}>
             Critical Alerts
           </Typography>
           <Divider sx={{ my: 1, background: 'rgba(255,255,255,0.08)' }} />
@@ -75,13 +76,13 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
             <MenuItem disabled sx={{ color: '#A0AEC0' }}>No critical alerts</MenuItem>
           )}
           {alerts.map((alert, idx) => (
-            <MenuItem key={alert.id || idx} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
+            <MenuItem key={alert.id || idx} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal', '&:hover': { backgroundColor: 'rgba(0, 102, 255, 0.1)' } }}>
               <ErrorIcon sx={{ color: '#FF3B30', mr: 1, mt: 0.5 }} />
               <Box>
                 {/* Mostrar formato para alertas críticas generadas localmente */}
                 {alert.provider && alert.errorMessage ? (
                   <>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#FF3B30' }}>{alert.provider}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0066FF' }}>{alert.provider}</Typography>
                     <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>{alert.errorMessage}</Typography>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
                       {alert.failureCount} failed payin(s) • Rate: {alert.failureRate}%

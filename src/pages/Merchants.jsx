@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField, List, ListItem, ListItemIcon, ListItemText, Collapse, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -177,8 +177,8 @@ const Merchants = () => {
     }));
   };
 
-  // Filtrar los datos del overview para el merchant seleccionado
-  const getMerchantData = () => {
+  // Filtrar los datos del overview para el merchant seleccionado - MEMOIZADO
+  const merchantDetail = useMemo(() => {
     // Crear objeto vacío por defecto para evitar null
     const emptyMerchant = {
       merchantId: selectedMerchant,
@@ -251,9 +251,7 @@ const Merchants = () => {
         ? merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length
         : 0,
     };
-  };
-
-  const merchantDetail = getMerchantData();
+  }, [selectedMerchant, overview, allMerchantsData]);
 
   // Protección adicional: si merchantDetail es null pero hay un merchant seleccionado, crear objeto vacío
   const safeMerchantDetail = merchantDetail || (selectedMerchant ? {
@@ -268,8 +266,8 @@ const Merchants = () => {
     avgLatencyMs: 0,
   } : null);
 
-  // Crear mock events con status correcto (incluyendo CANCELLED para USER)
-  const merchantMockEvents = (safeMerchantDetail?.activeIssues || []).flatMap(issue => {
+  // Crear mock events con status correcto - MEMOIZADO
+  const merchantMockEvents = useMemo(() => (safeMerchantDetail?.activeIssues || []).flatMap(issue => {
     return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
       let status = 'SUCCEEDED';
       
@@ -302,15 +300,14 @@ const Merchants = () => {
         errorCode: issue.mainErrorType
       };
     });
-  });
+  }), [safeMerchantDetail?.activeIssues]);
 
-  // Obtener lista de merchants únicos desde allMerchantsData (independiente de la fecha)
-  const allMerchants = (() => {
+  // Obtener lista de merchants únicos desde allMerchantsData - MEMOIZADO
+  const allMerchants = useMemo(() => {
     if (!allMerchantsData) return [];
     const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
-    // Retornar los merchantIds de los datos del endpoint /api/merchants
     return merchantsList.map(m => m.merchantId).filter(Boolean).sort();
-  })();
+  }, [allMerchantsData]);
 
   // Obtener issues del merchant seleccionado
   // Intentar con 'activeIssues' primero, luego 'issues' como fallback
@@ -323,8 +320,8 @@ const Merchants = () => {
     return hasFailures && !isCancelled;
   });
 
-  // Calcular KPIs del merchant
-  const calculateMerchantMetrics = () => {
+  // Calcular KPIs del merchant - MEMOIZADO
+  const metrics = useMemo(() => {
     if (merchantIssues.length === 0) {
       return {
         totalPayins: 0,
@@ -340,7 +337,6 @@ const Merchants = () => {
     }
 
     // Calculate metrics based on total attempts/events, not just issues
-    // totalEvents = total attempts, failedEvents = failed attempts
     let totalAttempts = 0;
     let totalFailedAttempts = 0;
     let userCancelledAttempts = 0;
@@ -389,60 +385,36 @@ const Merchants = () => {
       totalAttempts: totalAttempts,
       approvedAttempts: approvedAttempts
     };
-  };
+  }, [merchantIssues]);
 
-  const metrics = calculateMerchantMetrics();
-
-  // Analizar problemas por provider
-  const getProviderStatus = () => {
+  // Analizar problemas por provider - MEMOIZADO y sin console.log
+  const providerStatus = useMemo(() => {
     const status = {};
 
     // Obtener todos los providers del merchant seleccionado desde allMerchantsData
     if (selectedMerchant && allMerchantsData) {
       try {
-        // El endpoint puede devolver un array directo o un objeto con propiedad merchants
         const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
-        
-        console.log('=== PROVIDER LOOKUP DEBUG ===');
-        console.log('All merchants data received:', allMerchantsData);
-        console.log('Merchants list:', merchantsList);
-        console.log('Merchants list length:', merchantsList.length);
-        
-        // Obtener el nombre del merchant del overview para hacer matching
         const selectedMerchantName = (overview?.activeIssues || []).find(i => i.merchantId === selectedMerchant)?.merchantName;
-        
-        console.log('Selected merchant ID:', selectedMerchant);
-        console.log('Selected merchant name:', selectedMerchantName);
-        console.log('Available merchant names in API:', merchantsList.map(m => m.merchantName || m.name || m.id));
         
         // Try to find merchant by name, with case-insensitive matching as fallback
         let merchantData = merchantsList.find(m => m.merchantName === selectedMerchantName);
         
         if (!merchantData && selectedMerchantName) {
-          // Fallback: case-insensitive match
           merchantData = merchantsList.find(m => 
             (m.merchantName || '').toLowerCase() === selectedMerchantName.toLowerCase()
           );
         }
         
         if (!merchantData && merchantsList.length > 0) {
-          // Another fallback: try matching by ID
           merchantData = merchantsList.find(m => m.merchantId === selectedMerchant || m.id === selectedMerchant);
         }
         
-        console.log('Merchant data found:', merchantData);
-        
         if (merchantData) {
-          // Handle different possible provider property structures
           const providersList = merchantData.providers || merchantData.paymentProviders || merchantData.payment_providers || [];
-          
-          console.log('Providers list from API:', providersList);
-          console.log('Providers list type:', typeof providersList);
-          console.log('Providers list is array:', Array.isArray(providersList));
           
           if (Array.isArray(providersList) && providersList.length > 0) {
             providersList.forEach(provider => {
-              // Provider can be an object with 'provider' property or just a string
               let providerName = null;
               
               if (typeof provider === 'string') {
@@ -458,25 +430,13 @@ const Merchants = () => {
                   latencyMs: 0,
                   errors: []
                 };
-                console.log('✓ Initialized provider:', providerName);
               }
             });
-          } else {
-            console.warn('Providers list is empty or not an array');
-          }
-        } else {
-          console.warn('Merchant data not found for selected merchant:', selectedMerchantName);
-          if (merchantsList.length > 0) {
-            console.log('First merchant in list:', merchantsList[0]);
           }
         }
       } catch (error) {
-        console.error('Error processing providers:', error);
+        // Silently handle error
       }
-    } else {
-      console.log('=== PROVIDER LOOKUP SKIPPED ===');
-      console.log('selectedMerchant:', selectedMerchant);
-      console.log('allMerchantsData:', allMerchantsData);
     }
 
     // Agregar/actualizar conteos de transacciones del merchant detail
@@ -484,34 +444,23 @@ const Merchants = () => {
       if (!status[issue.provider]) {
         status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
       }
-      // Contar totalEvents (intentos totales) en lugar de 1 issue
       status[issue.provider].total += issue.totalEvents || 0;
       
-      // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
       const isCancelled = issue.mainErrorCategory === 'USER';
       if (!isCancelled) {
-        // Contar failedEvents (intentos fallidos) en lugar de 1 issue
         status[issue.provider].failed += issue.failedEvents || 0;
       }
       
-      // Actualizar latency
       status[issue.provider].latencyMs = issue.avgLatencyMs || status[issue.provider].latencyMs;
       
-      // Solo agregar error si no es cancelado por usuario
       if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
     });
 
-    console.log('=== FINAL PROVIDER STATUS ===');
-    console.log('Final provider status:', status);
-    console.log('Provider count:', Object.keys(status).length);
-    console.log('Provider names:', Object.keys(status));
     return status;
-  };
+  }, [selectedMerchant, allMerchantsData, overview, merchantIssues]);
 
-  const providerStatus = getProviderStatus();
-
-  // Obtener proveedor más utilizado
-  const getMostUsedProvider = () => {
+  // Obtener proveedor más utilizado - MEMOIZADO
+  const mostUsedProvider = useMemo(() => {
     if (Object.keys(providerStatus).length === 0) return null;
     const activeProviders = Object.entries(providerStatus)
       .filter(([_, status]) => status.total > 0);
@@ -521,27 +470,19 @@ const Merchants = () => {
     return activeProviders.reduce((prev, current) => 
       (prev[1].total > current[1].total) ? prev : current
     )[0] || null;
-  };
+  }, [providerStatus]);
 
-  const mostUsedProvider = getMostUsedProvider();
-  const availableProviders = Object.keys(providerStatus).sort();
+  const availableProviders = useMemo(() => Object.keys(providerStatus).sort(), [providerStatus]);
 
-  // Ordenar providers por número de transacciones (de mayor a menor)
-  // Los que tienen transacciones primero, luego los demás
-  const sortedProviders = Object.entries(providerStatus)
+  // Ordenar providers por número de transacciones - MEMOIZADO
+  const sortedProviders = useMemo(() => Object.entries(providerStatus)
     .sort((a, b) => {
-      // Primero ordenar por total de transacciones (descendente)
       if (a[1].total !== b[1].total) {
         return b[1].total - a[1].total;
       }
-      // Si tienen el mismo total, ordenar alfabéticamente
       return a[0].localeCompare(b[0]);
     })
-    .map(([provider]) => provider);
-
-  console.log('All providers:', Object.keys(providerStatus));
-  console.log('Sorted providers:', sortedProviders);
-  console.log('Most used provider:', mostUsedProvider);
+    .map(([provider]) => provider), [providerStatus]);
 
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
     <Paper sx={{
