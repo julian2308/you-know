@@ -1,36 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
-import { mockData } from '../data/mockData';
-import errorRecommendations from '../constants/errorRecommendations.json';
+import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Obtener lista de merchants únicos
-  const allMerchants = Array.from(new Set(mockData.payinEvents.map(p => p.merchant_id))).sort();
+  const from = '2025-12-13T08:00:00';
+  const to = '2025-12-13T12:00:00';
 
-  // Obtener providers usados por el merchant seleccionado
-  const merchantProviders = selectedMerchant
-    ? Array.from(new Set(
-        mockData.payinEvents
-          .filter(p => p.merchant_id === selectedMerchant)
-          .map(p => p.provider)
-      )).sort()
-    : [];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const url = OVERVIEW_ENDPOINT(from, to);
+        const data = await apiClient.get(url);
+        setOverview(data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setLoading(false);
+      }
+    };
 
-  // Filtrar payins del merchant seleccionado
-  const merchantPayins = selectedMerchant
-    ? mockData.payinEvents.filter(p => p.merchant_id === selectedMerchant)
+    fetchData();
+  }, []);
+
+  // Obtener lista de merchants únicos desde activeIssues
+  const allMerchants = Array.from(
+    new Set((overview?.activeIssues || []).map(i => i.merchantId))
+  ).sort();
+
+  // Obtener issues del merchant seleccionado
+  const merchantIssues = selectedMerchant
+    ? (overview?.activeIssues || []).filter(i => i.merchantId === selectedMerchant)
     : [];
 
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
-    if (merchantPayins.length === 0) {
+    if (merchantIssues.length === 0) {
       return {
         totalPayins: 0,
         successRate: 0,
@@ -42,21 +55,22 @@ const Merchants = () => {
       };
     }
 
-    const succeeded = merchantPayins.filter(p => p.status === 'SUCCEEDED').length;
-    const failed = merchantPayins.filter(p => p.status === 'FAILED').length;
-    const total = merchantPayins.length;
-    const successRate = ((succeeded / total) * 100).toFixed(1);
-    const totalVolume = merchantPayins.reduce((sum, p) => sum + p.amount, 0);
-    const avgLatency = (merchantPayins.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / total).toFixed(2);
-    const failureRate = ((failed / total) * 100).toFixed(1);
+    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+    const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    const totalSuccess = totalEvents - totalFailed;
+    const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
+    const avgLatency = merchantIssues.length > 0 
+      ? (merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length / 1000).toFixed(2)
+      : '0.00';
+    const failureRate = totalEvents > 0 ? ((totalFailed / totalEvents) * 100).toFixed(1) : '0.0';
 
     return {
-      totalPayins: total,
+      totalPayins: totalEvents,
       successRate: parseFloat(successRate),
-      failedPayins: failed,
-      totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
+      failedPayins: totalFailed,
+      totalVolume: '$0.0K',
       avgLatency: `${avgLatency}s`,
-      successCount: succeeded,
+      successCount: totalSuccess,
       failureRate: parseFloat(failureRate)
     };
   };
@@ -66,42 +80,28 @@ const Merchants = () => {
   // Analizar problemas por provider
   const getProviderStatus = () => {
     const status = {};
-    merchantPayins.forEach(payin => {
-      if (!status[payin.provider]) {
-        status[payin.provider] = { total: 0, failed: 0, errors: [] };
+    merchantIssues.forEach(issue => {
+      if (!status[issue.provider]) {
+        status[issue.provider] = { 
+          total: 0, 
+          failed: 0, 
+          errors: [],
+          impactLevel: issue.impactLevel,
+          latencyMs: issue.avgLatencyMs,
+          merchantName: issue.merchantName,
+          country: issue.countryCode
+        };
       }
-      status[payin.provider].total++;
-      if (payin.status === 'FAILED') {
-        status[payin.provider].failed++;
-        status[payin.provider].errors.push(payin.error_code);
+      status[issue.provider].total += issue.totalEvents || 0;
+      status[issue.provider].failed += issue.failedEvents || 0;
+      if (issue.mainErrorType) {
+        status[issue.provider].errors.push(issue.incidentTag);
       }
     });
     return status;
   };
 
   const providerStatus = getProviderStatus();
-
-  // Obtener los 5 errores más comunes
-  const getTopErrors = () => {
-    const errorCounts = {};
-    merchantPayins
-      .filter(p => p.status === 'FAILED' && p.error_code)
-      .forEach(payin => {
-        errorCounts[payin.error_code] = (errorCounts[payin.error_code] || 0) + 1;
-      });
-    
-    return Object.entries(errorCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([code, count]) => ({
-        code,
-        count,
-        recommendation: errorRecommendations.errorRecommendations[code]
-      }))
-      .filter(item => item.recommendation);
-  };
-
-  const topErrors = getTopErrors();
 
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
     <Paper sx={{
@@ -145,6 +145,14 @@ const Merchants = () => {
     </Paper>
   );
 
+  if (loading) {
+    return (
+      <Box sx={{ p: 6, textAlign: 'center' }}>
+        <Typography>Loading data...</Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', p: { xs: 2, md: 3 } }}>
       {/* Header */}
@@ -178,9 +186,14 @@ const Merchants = () => {
             }}
           >
             <MenuItem value="">Select your business</MenuItem>
-            {allMerchants.map(merchant => (
-              <MenuItem key={merchant} value={merchant}>{merchant}</MenuItem>
-            ))}
+            {allMerchants.map(merchant => {
+              const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
+              return (
+                <MenuItem key={merchant} value={merchant}>
+                  {merchantName || merchant}
+                </MenuItem>
+              );
+            })}
           </Select>
         </FormControl>
       </Box>
@@ -188,7 +201,7 @@ const Merchants = () => {
       {/* Content */}
       {selectedMerchant ? (
         <Grid container spacing={3} sx={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr 1fr 1fr', gridAutoRows: 'auto' }}>
-          {/* KPIs Grid */}
+          {/* KPIs Grid - 4 columnas iguales en la primera fila */}
           <Grid item xs={12} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
             <MetricCard
               icon={TrendingUpIcon}
@@ -219,8 +232,8 @@ const Merchants = () => {
               title="Average Latency"
               value={metrics.avgLatency}
               subtitle="Processing time"
-              color={metrics.avgLatency > 1 ? '#FF9500' : '#00D084'}
-              bgColor={metrics.avgLatency > 1 ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 208, 132, 0.1)'}
+              color={metrics.avgLatency > '1s' ? '#FF9500' : '#00D084'}
+              bgColor={metrics.avgLatency > '1s' ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 208, 132, 0.1)'}
             />
           </Grid>
 
@@ -242,14 +255,13 @@ const Merchants = () => {
               )}
 
               <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 2, fontWeight: 600 }}>
-                Available providers: {merchantProviders.join(', ')}
+                Active Providers: {Object.keys(providerStatus).join(', ') || 'N/A'}
               </Typography>
 
               {/* Provider status */}
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, flex: 1 }}>
-                {merchantProviders.map(provider => {
-                  const pStatus = providerStatus[provider];
-                  const failRate = ((pStatus.failed / pStatus.total) * 100).toFixed(1);
+                {Object.entries(providerStatus).map(([provider, pStatus]) => {
+                  const failRate = pStatus.total > 0 ? ((pStatus.failed / pStatus.total) * 100).toFixed(1) : '0';
                   const isHealthy = pStatus.failed === 0;
 
                   return (
@@ -277,9 +289,12 @@ const Merchants = () => {
                           <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
                             {pStatus.total} transactions • Failure rate: {failRate}%
                           </Typography>
+                          <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                            Latency: {(pStatus.latencyMs / 1000).toFixed(2)}s
+                          </Typography>
                           {pStatus.failed > 0 && (
                             <Typography variant="caption" sx={{ color: '#FF9500', display: 'block' }}>
-                              Errors: {[...new Set(pStatus.errors)].join(', ')}
+                              Issues: {[...new Set(pStatus.errors)].join(', ')}
                             </Typography>
                           )}
                         </Paper>
@@ -297,41 +312,33 @@ const Merchants = () => {
                 Should I do something?
               </Typography>
 
-              {topErrors.length > 0 ? (
+              {merchantIssues.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Typography variant="body2" sx={{ color: '#A0AEC0', fontWeight: 600 }}>
-                    Top {topErrors.length} most common errors:
+                    Active Issues:
                   </Typography>
-                  {topErrors.map((error, index) => {
-                    const severity = error.recommendation.severity;
-                    const severityConfig = errorRecommendations.severityLevels[severity];
+                  {merchantIssues.map((issue, index) => {
+                    const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
                     
                     return (
                       <Alert 
-                        key={error.code} 
-                        severity={severity === 'critical' ? 'error' : severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'}
-                        sx={{ 
-                          mb: 0,
-                          backgroundColor: `${severityConfig.color}15`,
-                          borderColor: `${severityConfig.color}40`,
-                          '& .MuiAlert-message': {
-                            width: '100%'
-                          }
-                        }}
+                        key={issue.incidentTag} 
+                        severity={issue.impactLevel === 'high' ? 'error' : issue.impactLevel === 'medium' ? 'warning' : 'info'}
+                        sx={{ mb: 0 }}
                       >
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                            {index + 1}. {error.recommendation.title} ({error.count} occurrences)
+                            {index + 1}. {issue.title}
                           </Typography>
-                          <Typography variant="caption" sx={{ display: 'block', mb: 1, color: 'inherit', opacity: 0.9 }}>
-                            {error.recommendation.userMessage}
+                          <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                            {issue.description}
                           </Typography>
-                          <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityConfig.color}` }}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityConfig.color }}>
-                              What to do:
+                          <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
+                              Suggested Action:
                             </Typography>
-                            <Typography variant="caption" sx={{ display: 'block', color: 'inherit', fontStyle: 'italic' }}>
-                              {error.recommendation.whatToDo}
+                            <Typography variant="caption" sx={{ display: 'block' }}>
+                              {issue.suggestedActionType}
                             </Typography>
                           </Box>
                         </Box>
@@ -339,13 +346,9 @@ const Merchants = () => {
                     );
                   })}
                 </Box>
-              ) : metrics.failureRate > 0 ? (
-                <Alert severity="info" sx={{ mb: 0 }}>
-                  ℹ️ You have failed transactions but no error details available.
-                </Alert>
               ) : (
                 <Alert severity="success" sx={{ mb: 0 }}>
-                  ✓ Excellent. All your transactions were processed successfully. Keep regular monitoring.
+                  ✓ Excellent. All your transactions are processing normally. Keep regular monitoring.
                 </Alert>
               )}
 
