@@ -284,6 +284,79 @@
       "estimatedResolutionTime": "Minimum 2-4 hours"
     }
   },
+  "errorCategoryRecommendations": {
+    "PROVIDER_TIMEOUT_SINGLE_ATTEMPT": {
+      "title": "Payment Processing Timeout",
+      "severity": "warning",
+      "userMessage": "The bank took too long to respond to the payment request",
+      "description": "The first attempt reached a timeout - the provider did not respond within the expected time",
+      "actions": [
+        "Implement automatic retries for timeout errors",
+        "Show a message to the customer indicating the bank is taking time to respond",
+        "Offer the customer to retry the payment if the first attempt fails",
+        "Consider retrying after a short delay (30-60 seconds)"
+      ],
+      "whatToDo": "This appears to be a temporary issue with the provider's response time. Implement automatic retry logic with exponential backoff. Show the customer a friendly message explaining that the bank is taking time to process their request and that you will retry automatically. If the issue persists after 2-3 retries, then escalate to provider support.",
+      "estimatedResolutionTime": "Usually resolves with automatic retries (1-5 minutes)"
+    },
+    "PROVIDER_TIMEOUT_MULTIPLE_ATTEMPTS": {
+      "title": "Provider Service Issue",
+      "severity": "error",
+      "userMessage": "The payment provider is experiencing issues",
+      "description": "Multiple timeout attempts indicate a systemic issue with the provider's service",
+      "actions": [
+        "The provider is experiencing sustained service issues",
+        "Contact the provider's support team immediately with the incident details",
+        "Request an ETA on when service will be restored",
+        "Route transactions to an alternative payment provider if available",
+        "Notify affected merchants about the ongoing issue"
+      ],
+      "whatToDo": "Since multiple attempts have failed due to timeouts, this indicates a provider-side outage or service degradation. Stop retrying and contact the provider's support team immediately. Provide them with affected transaction details, timestamps, and error messages. Meanwhile, configure your system to use an alternative provider for this payment method/region. Inform affected merchants about the issue and when you expect it to be resolved.",
+      "estimatedResolutionTime": "Depends on provider resolution (typically 1-4 hours)"
+    },
+    "PROVIDER": {
+      "title": "Provider Issue",
+      "severity": "error",
+      "userMessage": "This is a problem with the payment provider",
+      "description": "The error is caused by the payment provider and is not related to your configuration or the customer's data",
+      "actions": [
+        "This is a provider-side issue beyond your control",
+        "Contact the provider to report the incident and get updates",
+        "Request technical support from the provider to resolve the timeout or service issue",
+        "In the meantime, offer customers alternative payment methods"
+      ],
+      "whatToDo": "Since this is a provider-side issue, you cannot fix it directly. Contact the provider's support team with the incident details (timestamp, transaction amount, affected customers). Ask them for an ETA on resolution. While waiting, configure your system to route transactions to an alternative provider if available, or offer customers other payment methods.",
+      "estimatedResolutionTime": "Depends on provider response time (typically 1-4 hours)"
+    },
+    "MERCHANT": {
+      "title": "Merchant Configuration Issue",
+      "severity": "error",
+      "userMessage": "This issue is related to your account configuration",
+      "description": "The error is caused by incorrect merchant account settings or limits",
+      "actions": [
+        "Review your account limits and configuration in the dashboard",
+        "Verify that all required fields are properly configured",
+        "Check if you've reached daily or transaction limits",
+        "Contact support if you need to adjust your configuration"
+      ],
+      "whatToDo": "This error is related to your merchant account configuration. Review your dashboard settings, payment limits, and account restrictions. If you need to make changes to your configuration or increase limits, contact Yuno support.",
+      "estimatedResolutionTime": "5-30 minutes depending on the configuration change needed"
+    },
+    "USER": {
+      "title": "Customer Issue",
+      "severity": "warning",
+      "userMessage": "The issue is related to the customer or their payment method",
+      "description": "The customer cancelled the transaction, or their data is invalid",
+      "actions": [
+        "Inform the customer why the transaction failed",
+        "Ask the customer to verify their data (account, amount, credentials)",
+        "Suggest they try again with the same or different payment method",
+        "Offer to help them complete the transaction"
+      ],
+      "whatToDo": "Contact the customer to explain the issue and help them resolve it. It's typically related to invalid data, incorrect credentials, or insufficient funds. Ask them to verify their information and try again.",
+      "estimatedResolutionTime": "Depends on customer response"
+    }
+  },
   "severityLevels": {
     "info": {
       "color": "#0F7AFF",

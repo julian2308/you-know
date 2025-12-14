@@ -41,32 +41,121 @@ const Alerts = () => {
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
+    if (!errorCode) return null;
+    
+    // Normalize the error code: uppercase and remove special characters
+    const normalized = errorCode.trim().toUpperCase().replace(/[\s\-]/g, '_');
+    
     const errorCodeMap = {
       'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'RESPONSE_TIME_EXCEEDED': 'PROVIDER_TIMEOUT',
+      'BANK_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'TIMEOUT': 'PROVIDER_TIMEOUT',
       'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'BANK_SERVICE_NOT_AVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
       'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
       'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT': 'INSUFFICIENT_BALANCE',
       'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
       'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INCORRECT_RECIPIENT_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_DATA': 'INVALID_BENEFICIARY_DATA',
       'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
       'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'BLOCKED_ACCOUNT': 'ACCOUNT_BLOCKED',
+      'BLOCKED': 'ACCOUNT_BLOCKED',
       'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'BANK_ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'CLOSED': 'ACCOUNT_CLOSED',
       'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'SECURITY_CONFIRMATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
       'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'CONFIRMATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'EXPIRED': 'AUTHORIZATION_EXPIRED',
       'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'BANK_REJECTION': 'PROVIDER_DECLINED',
+      'DECLINED': 'PROVIDER_DECLINED',
+      'REJECTION': 'PROVIDER_DECLINED',
       'RISK_BLOCKED': 'RISK_BLOCKED',
+      'SECURITY_BLOCK': 'RISK_BLOCKED',
+      'RISK': 'RISK_BLOCKED',
       'AML_REJECTED': 'AML_REJECTED',
+      'REGULATORY_REJECTION': 'AML_REJECTED',
+      'AML': 'AML_REJECTED',
       'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'LEGAL_VALIDATION_REQUIRED': 'SANCTIONS_MATCH',
+      'SANCTIONS': 'SANCTIONS_MATCH',
       'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'ERROR': 'INTERNAL_PROCESSING_ERROR',
       'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'TOO_MANY_FAILED_ATTEMPTS': 'RETRY_LIMIT_EXCEEDED',
+      'RETRY_LIMIT': 'RETRY_LIMIT_EXCEEDED',
       'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'TRANSACTION_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
       'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+      'DAILY_LIMIT_REACHED': 'DAILY_PAYOUT_LIMIT',
+      'DAILY_LIMIT': 'DAILY_PAYOUT_LIMIT',
     };
-    return errorCodeMap[errorCode] || null;
+    
+    // First try exact match
+    if (errorCodeMap[normalized]) {
+      return errorCodeMap[normalized];
+    }
+    
+    // If no exact match, try to find by pattern (search for keywords within the code)
+    // E.g., MX_STRIPE_TIMEOUT contains TIMEOUT
+    for (const [key, value] of Object.entries(errorCodeMap)) {
+      if (normalized.includes(key) && key.length > 3) {
+        return value;
+      }
+    }
+    
+    return null;
   };
 
   // Get recommendations from JSON based on error code
-  const getRecommendation = (errorCode) => {
+  const getRecommendation = (errorCode, mainErrorCategory, totalEvents, mainErrorType) => {
+    const normalizedErrorCode = errorCode?.toUpperCase()?.trim() || '';
+    const normalizedMainErrorType = mainErrorType?.toLowerCase()?.trim();
+    const normalizedMainErrorCategory = mainErrorCategory?.trim()?.toUpperCase();
+    
+    // Check if this is a timeout error (primary check: error code name contains TIMEOUT)
+    const isTimeoutByName = normalizedErrorCode.includes('TIMEOUT');
+    const isTimeoutByType = normalizedMainErrorType === 'timeout';
+    const isTimeoutByMapping = mapErrorCode(errorCode) === 'PROVIDER_TIMEOUT';
+    
+    const isTimeoutError = isTimeoutByName || isTimeoutByType || isTimeoutByMapping;
+    
+    // Apply attempt-based logic for ANY timeout from a PROVIDER
+    if (isTimeoutError && normalizedMainErrorCategory === 'PROVIDER') {
+      // If multiple attempts, provider is having issues
+      if (totalEvents && totalEvents > 1) {
+        return errorRecommendations.errorCategoryRecommendations['PROVIDER_TIMEOUT_MULTIPLE_ATTEMPTS'] || 
+               errorRecommendations.errorCategoryRecommendations['PROVIDER'];
+      }
+      // If single or no attempt info, first attempt - recommend retries
+      else {
+        return errorRecommendations.errorCategoryRecommendations['PROVIDER_TIMEOUT_SINGLE_ATTEMPT'] || 
+               errorRecommendations.errorRecommendations['PROVIDER_TIMEOUT'];
+      }
+    }
+    
+    // For non-timeout PROVIDER errors, use generic provider recommendation
+    if (!isTimeoutError && normalizedMainErrorCategory === 'PROVIDER') {
+      return errorRecommendations.errorCategoryRecommendations['PROVIDER'];
+    }
+    
+    // For other categories (MERCHANT, USER, etc.)
+    if (normalizedMainErrorCategory) {
+      if (errorRecommendations.errorCategoryRecommendations?.[normalizedMainErrorCategory]) {
+        return errorRecommendations.errorCategoryRecommendations[normalizedMainErrorCategory];
+      }
+    }
+    
+    // Fall back to error-specific recommendations
     const mappedCode = mapErrorCode(errorCode);
     if (mappedCode) {
       return errorRecommendations.errorRecommendations[mappedCode] || null;
@@ -110,7 +199,10 @@ const Alerts = () => {
             paymentMethod: issue.paymentMethod,
             suggestedAction: issue.suggestedActionType,
             firstSeen: issue.firstSeen,
-            lastSeen: issue.lastSeen
+            lastSeen: issue.lastSeen,
+            mainErrorCategory: issue.mainErrorCategory,
+            totalEvents: issue.totalEvents,
+            mainErrorType: issue.mainErrorType
           }));
 
         // Separate critical from regular alerts
@@ -235,7 +327,7 @@ const Alerts = () => {
               {filteredAlerts.map(alert => {
                 const colors = getSeverityColor(alert.severity, alert.isCritical);
                 const isExpanded = expandedAlerts[alert.id] || false;
-                const recommendation = getRecommendation(alert.errorCode);
+                const recommendation = getRecommendation(alert.errorCode, alert.mainErrorCategory, alert.totalEvents, alert.mainErrorType);
 
                 return (
                   <React.Fragment key={alert.id}>

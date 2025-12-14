@@ -21,32 +21,121 @@ const Merchants = () => {
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
+    if (!errorCode) return null;
+    
+    // Normalize the error code: uppercase and remove special characters
+    const normalized = errorCode.trim().toUpperCase().replace(/[\s\-]/g, '_');
+    
     const errorCodeMap = {
       'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'RESPONSE_TIME_EXCEEDED': 'PROVIDER_TIMEOUT',
+      'BANK_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'TIMEOUT': 'PROVIDER_TIMEOUT',
       'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'BANK_SERVICE_NOT_AVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
       'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
       'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT': 'INSUFFICIENT_BALANCE',
       'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
       'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INCORRECT_RECIPIENT_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_DATA': 'INVALID_BENEFICIARY_DATA',
       'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
       'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'BLOCKED_ACCOUNT': 'ACCOUNT_BLOCKED',
+      'BLOCKED': 'ACCOUNT_BLOCKED',
       'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'BANK_ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'CLOSED': 'ACCOUNT_CLOSED',
       'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'SECURITY_CONFIRMATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
       'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'CONFIRMATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'EXPIRED': 'AUTHORIZATION_EXPIRED',
       'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'BANK_REJECTION': 'PROVIDER_DECLINED',
+      'DECLINED': 'PROVIDER_DECLINED',
+      'REJECTION': 'PROVIDER_DECLINED',
       'RISK_BLOCKED': 'RISK_BLOCKED',
+      'SECURITY_BLOCK': 'RISK_BLOCKED',
+      'RISK': 'RISK_BLOCKED',
       'AML_REJECTED': 'AML_REJECTED',
+      'REGULATORY_REJECTION': 'AML_REJECTED',
+      'AML': 'AML_REJECTED',
       'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'LEGAL_VALIDATION_REQUIRED': 'SANCTIONS_MATCH',
+      'SANCTIONS': 'SANCTIONS_MATCH',
       'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'ERROR': 'INTERNAL_PROCESSING_ERROR',
       'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'TOO_MANY_FAILED_ATTEMPTS': 'RETRY_LIMIT_EXCEEDED',
+      'RETRY_LIMIT': 'RETRY_LIMIT_EXCEEDED',
       'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'TRANSACTION_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
       'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+      'DAILY_LIMIT_REACHED': 'DAILY_PAYOUT_LIMIT',
+      'DAILY_LIMIT': 'DAILY_PAYOUT_LIMIT',
     };
-    return errorCodeMap[errorCode] || null;
+    
+    // First try exact match
+    if (errorCodeMap[normalized]) {
+      return errorCodeMap[normalized];
+    }
+    
+    // If no exact match, try to find by pattern (search for keywords within the code)
+    // E.g., MX_STRIPE_TIMEOUT contains TIMEOUT
+    for (const [key, value] of Object.entries(errorCodeMap)) {
+      if (normalized.includes(key) && key.length > 3) {
+        return value;
+      }
+    }
+    
+    return null;
   };
 
   // Get recommendations from JSON based on error code
-  const getRecommendation = (errorCode) => {
+  const getRecommendation = (errorCode, mainErrorCategory, totalEvents, mainErrorType) => {
+    const normalizedErrorCode = errorCode?.toUpperCase()?.trim() || '';
+    const normalizedMainErrorType = mainErrorType?.toLowerCase()?.trim();
+    const normalizedMainErrorCategory = mainErrorCategory?.trim()?.toUpperCase();
+    
+    // Check if this is a timeout error (primary check: error code name contains TIMEOUT)
+    const isTimeoutByName = normalizedErrorCode.includes('TIMEOUT');
+    const isTimeoutByType = normalizedMainErrorType === 'timeout';
+    const isTimeoutByMapping = mapErrorCode(errorCode) === 'PROVIDER_TIMEOUT';
+    
+    const isTimeoutError = isTimeoutByName || isTimeoutByType || isTimeoutByMapping;
+    
+    // Apply attempt-based logic for ANY timeout from a PROVIDER
+    if (isTimeoutError && normalizedMainErrorCategory === 'PROVIDER') {
+      // If multiple attempts, provider is having issues
+      if (totalEvents && totalEvents > 1) {
+        return errorRecommendations.errorCategoryRecommendations['PROVIDER_TIMEOUT_MULTIPLE_ATTEMPTS'] || 
+               errorRecommendations.errorCategoryRecommendations['PROVIDER'];
+      }
+      // If single or no attempt info, first attempt - recommend retries
+      else {
+        return errorRecommendations.errorCategoryRecommendations['PROVIDER_TIMEOUT_SINGLE_ATTEMPT'] || 
+               errorRecommendations.errorRecommendations['PROVIDER_TIMEOUT'];
+      }
+    }
+    
+    // For non-timeout PROVIDER errors, use generic provider recommendation
+    if (!isTimeoutError && normalizedMainErrorCategory === 'PROVIDER') {
+      return errorRecommendations.errorCategoryRecommendations['PROVIDER'];
+    }
+    
+    // For other categories (MERCHANT, USER, etc.)
+    if (normalizedMainErrorCategory) {
+      if (errorRecommendations.errorCategoryRecommendations?.[normalizedMainErrorCategory]) {
+        return errorRecommendations.errorCategoryRecommendations[normalizedMainErrorCategory];
+      }
+    }
+    
+    // Fall back to error-specific recommendations
     const mappedCode = mapErrorCode(errorCode);
     if (mappedCode) {
       return errorRecommendations.errorRecommendations[mappedCode] || null;
@@ -149,13 +238,20 @@ const Merchants = () => {
 
     // Construir el objeto merchantDetail con los datos filtrados
     // Excluir canceladas por usuario del conteo de fallos
-    const totalFailed = merchantIssues.reduce((sum, i) => {
-      const isCancelled = i.mainErrorCategory === 'USER';
-      return isCancelled ? sum : sum + (i.failedEvents || 0);
-    }, 0);
+    let totalFailed = 0;
+    let totalApproved = 0;
     
-    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
-    const totalSuccess = totalEvents - totalFailed;
+    merchantIssues.forEach(i => {
+      const isCancelled = i.mainErrorCategory === 'USER';
+      if (!isCancelled) {
+        // failedEvents represents the count of failed transactions/attempts
+        totalFailed += (i.failedEvents || 0);
+      }
+      // Approved events = total events minus failed events
+      totalApproved += ((i.totalEvents || 0) - (i.failedEvents || 0));
+    });
+    
+    const totalEvents = totalApproved + totalFailed;
     
     return {
       merchantId: selectedMerchant,
@@ -163,7 +259,8 @@ const Merchants = () => {
       to: overview.to,
       activeIssues: merchantIssues,
       totalEvents: totalEvents,
-      totalSuccess: totalSuccess,
+      totalApproved: totalApproved,
+      totalSuccess: totalApproved,
       totalFailed: totalFailed,
       avgLatencyMs: merchantIssues.length > 0 
         ? merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length
@@ -238,34 +335,50 @@ const Merchants = () => {
         totalVolume: '$0.0K',
         avgLatency: '0s',
         successCount: 0,
-        failureRate: 0
+        failureRate: 0,
+        totalAttempts: 0,
+        approvedAttempts: 0
       };
     }
 
-    // totalPayins = número de incidentes/issues (transacciones únicas con problema)
-    // no el total de eventos (intentos)
-    const totalPayins = merchantIssues.length;
+    // Calculate metrics based on total attempts/events, not just issues
+    // totalEvents = total attempts, failedEvents = failed attempts
+    let totalAttempts = 0;
+    let totalFailedAttempts = 0;
+    let userCancelledAttempts = 0;
     
-    // Separar fallos reales de canceladas por usuario
-    const totalFailed = merchantIssues.reduce((sum, i) => {
+    merchantIssues.forEach(i => {
       const isCancelled = i.mainErrorCategory === 'USER';
-      return isCancelled ? sum : 1; // Contar 1 por cada issue fallido (no por totalEvents)
-    }, 0);
+      totalAttempts += (i.totalEvents || 0);
+      
+      if (isCancelled) {
+        userCancelledAttempts += (i.failedEvents || 0);
+      } else {
+        totalFailedAttempts += (i.failedEvents || 0);
+      }
+    });
     
-    const totalSuccess = totalPayins - totalFailed;
-    const successRate = totalPayins > 0 ? ((totalSuccess / totalPayins) * 100).toFixed(1) : '0.0';
+    // Approved attempts = total - failed (excluding user cancellations)
+    const approvedAttempts = totalAttempts - totalFailedAttempts - userCancelledAttempts;
     
-    // Calculate total volume from successful transactions only (excluding failed/cancelled)
-    const volumeAmount = merchantIssues.reduce((sum, i) => {
-      const successfulEvents = (i.totalEvents || 0) - (i.failedEvents || 0);
-      return sum + (successfulEvents * 100);
-    }, 0);
+    // Success rate = approved / (total - user_cancelled)
+    const totalValidAttempts = totalAttempts - userCancelledAttempts;
+    const successRate = totalValidAttempts > 0 ? ((approvedAttempts / totalValidAttempts) * 100).toFixed(1) : '0.0';
+    
+    // Calculate failure rate
+    const failureRate = totalValidAttempts > 0 ? ((totalFailedAttempts / totalValidAttempts) * 100).toFixed(1) : '0.0';
+    
+    // Count of failed transactions (issues)
+    const totalPayins = merchantIssues.length;
+    const totalFailed = merchantIssues.filter(i => i.mainErrorCategory !== 'USER').length;
+    
+    // Calculate total volume (assuming $100 per successful attempt)
+    const volumeAmount = approvedAttempts * 100;
     const totalVolume = `$${(volumeAmount / 1000).toFixed(1)}K`;
     
     const avgLatency = merchantIssues.length > 0 
       ? (merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length / 1000).toFixed(2)
       : '0.00';
-    const failureRate = totalPayins > 0 ? ((totalFailed / totalPayins) * 100).toFixed(1) : '0.0';
 
     return {
       totalPayins: totalPayins,
@@ -273,8 +386,10 @@ const Merchants = () => {
       failedPayins: totalFailed,
       totalVolume: totalVolume,
       avgLatency: `${avgLatency}s`,
-      successCount: totalSuccess,
-      failureRate: parseFloat(failureRate)
+      successCount: approvedAttempts,
+      failureRate: parseFloat(failureRate),
+      totalAttempts: totalAttempts,
+      approvedAttempts: approvedAttempts
     };
   };
 
@@ -683,7 +798,7 @@ const Merchants = () => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
                     const alertId = `${issue.incidentTag}-${issue.provider}`;
                     const isExpanded = expandedAlerts[alertId] || false;
-                    const recommendation = getRecommendation(issue.incidentTag);
+                    const recommendation = getRecommendation(issue.incidentTag, issue.mainErrorCategory, issue.totalEvents, issue.mainErrorType);
                     // Cada issue es una transacción fallida, totalEvents son los intentos de esa transacción
                     return (
                       <Box key={issue.incidentTag}>
