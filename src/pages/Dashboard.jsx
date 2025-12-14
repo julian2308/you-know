@@ -137,10 +137,9 @@ const Dashboard = () => {
     new Set((overview?.activeIssues || []).map(i => i.countryCode))
   ).filter(Boolean).sort();
   
-  // Filtrar payins por país
-  const payins = selectedCountry === 'ALL'
-    ? mockEvents
-    : mockEvents.filter(p => p.country === selectedCountry);
+  // Mostrar TODOS los payins en la tabla (no filtrar por país)
+  // Las métricas sí se filtran por país, pero la tabla muestra todas las transacciones
+  const payins = mockEvents;
   
   // Filtrar activeIssues por país
   const filteredIssues = selectedCountry === 'ALL'
@@ -153,7 +152,14 @@ const Dashboard = () => {
     const isCancelled = i.mainErrorCategory === 'USER';
     return isCancelled ? sum : sum + (i.failedEvents || 0);
   }, 0);
-  const countrySucceeded = filteredIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0);
+  
+  // Excluir canceladas de usuario al contar exitosas
+  const countrySucceeded = filteredIssues.reduce((sum, i) => {
+    const isCancelled = i.mainErrorCategory === 'USER';
+    const failed = isCancelled ? 0 : (i.failedEvents || 0);
+    return sum + (i.totalEvents - failed);
+  }, 0);
+  
   const countryTotalPayins = filteredIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
   const successRate = countryTotalPayins > 0 ? ((countrySucceeded / countryTotalPayins) * 100).toFixed(1) : '0.0';
   
@@ -232,6 +238,21 @@ const Dashboard = () => {
     securityGrade: getSecurityGrade(countrySecurityScore),
     alertCount: alerts.filter(a => a.severity === 'critical').length
   };
+
+  // DEBUG: Log metrics calculation
+  useEffect(() => {
+    if (overview) {
+      console.log('=== DASHBOARD METRICS DEBUG ===');
+      console.log('Selected Country:', selectedCountry);
+      console.log('Total Issues:', overview.activeIssues?.length || 0);
+      console.log('Filtered Issues:', filteredIssues.length);
+      console.log('countryTotalPayins:', countryTotalPayins);
+      console.log('countryFailed:', countryFailed);
+      console.log('countrySucceeded:', countrySucceeded);
+      console.log('Merchants in filtered issues:', Array.from(new Set(filteredIssues.map(i => i.merchantName))));
+      console.log('Payins count:', payins.length);
+    }
+  }, [overview, selectedCountry, filteredIssues, countryTotalPayins, countryFailed, countrySucceeded, payins]);
 
   const securityFactors = {
     success: (countrySucceeded / countryTotalPayins * 60).toFixed(1) || '0', 

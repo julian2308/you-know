@@ -17,6 +17,7 @@ const Merchants = () => {
   const [loading, setLoading] = useState(true);
   const [expandedAlerts, setExpandedAlerts] = useState({});
   const [allMerchantsData, setAllMerchantsData] = useState(null);
+  const [merchantsLoading, setMerchantsLoading] = useState(true);
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -102,16 +103,9 @@ const Merchants = () => {
         console.log('Received data:', data);
         setOverview(data);
         
-        // Verificar si el merchant seleccionado aún existe en los nuevos datos
-        const newMerchants = Array.from(
-          new Set((data?.activeIssues || []).map(i => i.merchantId))
-        );
-        console.log('Available merchants:', newMerchants);
-        
-        // Si el merchant seleccionado no existe en los nuevos datos, limpiar la selección
-        if (selectedMerchant && !newMerchants.includes(selectedMerchant)) {
-          setSelectedMerchant('');
-        }
+        // No limpiar la selección del merchant cuando cambia la fecha
+        // El merchant se mantiene seleccionado incluso si no tiene datos en el nuevo rango
+        console.log('Date range changed, keeping current merchant selection:', selectedMerchant);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -126,6 +120,7 @@ const Merchants = () => {
   useEffect(() => {
     const fetchAllMerchants = async () => {
       try {
+        setMerchantsLoading(true);
         const url = ALL_MERCHANTS_ENDPOINT();
         console.log('Fetching all merchants from URL:', url);
         const data = await apiClient.get(url);
@@ -133,6 +128,8 @@ const Merchants = () => {
         setAllMerchantsData(data);
       } catch (err) {
         console.error('Error fetching all merchants:', err);
+      } finally {
+        setMerchantsLoading(false);
       }
     };
 
@@ -141,26 +138,41 @@ const Merchants = () => {
 
   // Filtrar los datos del overview para el merchant seleccionado
   const getMerchantData = () => {
-    if (!selectedMerchant || !overview?.activeIssues) {
+    if (!selectedMerchant || !overview?.activeIssues || !allMerchantsData) {
       return null;
     }
 
-    // Filtrar los activeIssues para el merchant seleccionado
-    const merchantIssues = overview.activeIssues.filter(issue => issue.merchantId === selectedMerchant);
 
+    // Obtener el nombre del merchant desde allMerchantsData
+    const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
+    const selectedMerchantData = merchantsList.find(m => m.merchantId === selectedMerchant);
+    if (!selectedMerchantData) {
+      return null;
+    }
+    // Filtrar los activeIssues para el merchant seleccionado por nombre
+    const merchantIssues = overview.activeIssues.filter(issue => issue.merchantName === selectedMerchantData.merchantName);
     if (merchantIssues.length === 0) {
       return null;
     }
 
     // Construir el objeto merchantDetail con los datos filtrados
+    // Excluir canceladas por usuario del conteo de fallos
+    const totalFailed = merchantIssues.reduce((sum, i) => {
+      const isCancelled = i.mainErrorCategory === 'USER';
+      return isCancelled ? sum : sum + (i.failedEvents || 0);
+    }, 0);
+    
+    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+    const totalSuccess = totalEvents - totalFailed;
+    
     return {
       merchantId: selectedMerchant,
       from: overview.from,
       to: overview.to,
       activeIssues: merchantIssues,
-      totalEvents: merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0),
-      totalSuccess: merchantIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0),
-      totalFailed: merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0),
+      totalEvents: totalEvents,
+      totalSuccess: totalSuccess,
+      totalFailed: totalFailed,
       avgLatencyMs: merchantIssues.length > 0 
         ? merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length
         : 0,
@@ -205,14 +217,21 @@ const Merchants = () => {
     });
   });
 
-  // Obtener lista de merchants únicos desde activeIssues
-  const allMerchants = Array.from(
-    new Set((overview?.activeIssues || []).map(i => i.merchantId))
-  ).sort();
+  // Obtener lista de merchants únicos desde allMerchantsData (independiente de la fecha)
+  const allMerchants = (() => {
+    if (!allMerchantsData) return [];
+    const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
+    // Retornar los merchantIds de los datos del endpoint /api/merchants
+    return merchantsList.map(m => m.merchantId).filter(Boolean).sort();
+  })();
 
   // Obtener issues del merchant seleccionado
   // Intentar con 'activeIssues' primero, luego 'issues' como fallback
   const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
+  // DEBUG: Mostrar issues encontrados para el merchant seleccionado
+  if (selectedMerchant && merchantIssues.length > 0) {
+    console.log('DEBUG merchantIssues for', selectedMerchant, merchantIssues);
+  }
 
   // Filtrar solo issues con fallos reales (excluyendo canceladas por usuario)
   const merchantIssuesWithFailures = merchantIssues.filter(issue => {
@@ -235,16 +254,18 @@ const Merchants = () => {
       };
     }
 
-    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+    // totalPayins = número de incidentes/issues (transacciones únicas con problema)
+    // no el total de eventos (intentos)
+    const totalPayins = merchantIssues.length;
     
     // Separar fallos reales de canceladas por usuario
     const totalFailed = merchantIssues.reduce((sum, i) => {
       const isCancelled = i.mainErrorCategory === 'USER';
-      return isCancelled ? sum : sum + (i.failedEvents || 0);
+      return isCancelled ? sum : 1; // Contar 1 por cada issue fallido (no por totalEvents)
     }, 0);
     
-    const totalSuccess = totalEvents - totalFailed;
-    const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
+    const totalSuccess = totalPayins - totalFailed;
+    const successRate = totalPayins > 0 ? ((totalSuccess / totalPayins) * 100).toFixed(1) : '0.0';
     
     // Calculate total volume from successful transactions only (excluding failed/cancelled)
     const volumeAmount = merchantIssues.reduce((sum, i) => {
@@ -256,10 +277,10 @@ const Merchants = () => {
     const avgLatency = merchantIssues.length > 0 
       ? (merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length / 1000).toFixed(2)
       : '0.00';
-    const failureRate = totalEvents > 0 ? ((totalFailed / totalEvents) * 100).toFixed(1) : '0.0';
+    const failureRate = totalPayins > 0 ? ((totalFailed / totalPayins) * 100).toFixed(1) : '0.0';
 
     return {
-      totalPayins: totalEvents,
+      totalPayins: totalPayins,
       successRate: parseFloat(successRate),
       failedPayins: totalFailed,
       totalVolume: totalVolume,
@@ -314,12 +335,13 @@ const Merchants = () => {
       if (!status[issue.provider]) {
         status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
       }
-      status[issue.provider].total += issue.totalEvents || 0;
+      // Contar 1 por cada issue (no por totalEvents que son los intentos)
+      status[issue.provider].total += 1;
       
       // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
       const isCancelled = issue.mainErrorCategory === 'USER';
       if (!isCancelled) {
-        status[issue.provider].failed += issue.failedEvents || 0;
+        status[issue.provider].failed += 1; // Contar 1 por issue fallido, no por failedEvents
       }
       
       // Solo agregar error si no es cancelado por usuario
@@ -416,13 +438,13 @@ const Merchants = () => {
               Select Merchant
             </Typography>
             <FormControl sx={{ minWidth: 250 }}>
-              {loading ? (
+              {merchantsLoading || loading ? (
                 <Typography variant="body2" sx={{ color: '#A0AEC0', py: 2 }}>
                   Loading merchants...
                 </Typography>
               ) : allMerchants.length === 0 ? (
                 <Typography variant="body2" sx={{ color: '#FF9500', py: 2 }}>
-                  No merchants found for this period. Try a different date range or check back later.
+                  No merchants available
                 </Typography>
               ) : (
                 <Select
@@ -443,10 +465,20 @@ const Merchants = () => {
                 >
                   <MenuItem value="">Select your business</MenuItem>
                   {allMerchants.map(merchant => {
-                    const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
+                    // Obtener el nombre del merchant desde allMerchantsData
+                    let merchantName = merchant;
+                    
+                    if (allMerchantsData) {
+                      const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
+                      const merchantData = merchantsList.find(m => m.merchantId === merchant);
+                      if (merchantData) {
+                        merchantName = merchantData.merchantName;
+                      }
+                    }
+                    
                     return (
                       <MenuItem key={merchant} value={merchant}>
-                        {merchantName || merchant}
+                        {merchantName}
                       </MenuItem>
                     );
                   })}
@@ -673,11 +705,10 @@ const Merchants = () => {
                   </Typography>
                   {merchantIssuesWithFailures.map((issue, index) => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
-                    
                     const alertId = `${issue.incidentTag}-${issue.provider}`;
                     const isExpanded = expandedAlerts[alertId] || false;
                     const recommendation = getRecommendation(issue.incidentTag);
-                    
+                    // Cada issue es una transacción fallida, totalEvents son los intentos de esa transacción
                     return (
                       <Box key={issue.incidentTag}>
                         <Alert 
@@ -690,7 +721,7 @@ const Merchants = () => {
                                 {index + 1}. {issue.title}
                               </Typography>
                               <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-                                {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
+                                1 failed transaction (with {issue.totalEvents} attempt{issue.totalEvents !== 1 ? 's' : ''})
                               </Typography>
                               {recommendation && (
                                 <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>

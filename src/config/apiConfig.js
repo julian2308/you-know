@@ -3,7 +3,7 @@
  * Las URLs se pueden definir vía variables de entorno VITE_*
  */
 
-const API_BASE_URL = 'https://kerri-presusceptible-gallfly.ngrok-free.dev/api';
+const API_BASE_URL = 'https://preearthquake-shinily-lorenza.ngrok-free.dev/api';
 
 // Endpoint de overview
 export const OVERVIEW_ENDPOINT = (from, to) =>
