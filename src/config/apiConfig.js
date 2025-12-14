@@ -6,7 +6,14 @@
 const API_BASE_URL = 'https://kerri-presusceptible-gallfly.ngrok-free.dev/api';
 
 // Endpoint de overview
-export const OVERVIEW_ENDPOINT = (from, to) => `${API_BASE_URL}/overview?from=${from}&to=${to}`;
+export const OVERVIEW_ENDPOINT = (from, to) =>
+  `${API_BASE_URL}/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+
+
+// Endpoints de Merchants (histórico / detalle)
+export const MERCHANT_DETAIL_ENDPOINT = (merchantId, from, to) =>
+  `${API_BASE_URL}/merchants/${merchantId}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+
 
 // Endpoints de Providers
 const PROVIDERS_ENDPOINTS = {

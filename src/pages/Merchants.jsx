@@ -5,31 +5,64 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
-import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, apiClient } from '../config/apiConfig';
+
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
+  const [merchantDetail, setMerchantDetail] = useState(null);
+  const [loadingMerchant, setLoadingMerchant] = useState(false);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  const [from, setFrom] = useState('2025-12-13T08:00:00');
+  const [to, setTo] = useState('2025-12-13T12:00:00');
+
+  const normalizeDT = (v) => (v && v.length === 16 ? `${v}:00` : v); // datetime-local suele venir sin segundos
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        setLoading(true);
+        const url = OVERVIEW_ENDPOINT(normalizeDT(from), normalizeDT(to));
         const data = await apiClient.get(url);
         setOverview(data);
-        setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [from, to]);
+
+  useEffect(() => {
+    const fetchMerchant = async () => {
+      if (!selectedMerchant) {
+        setMerchantDetail(null);
+        return;
+      }
+
+      try {
+        setLoadingMerchant(true);
+        const url = MERCHANT_DETAIL_ENDPOINT(
+          selectedMerchant,
+          normalizeDT(from),
+          normalizeDT(to)
+        );
+        const data = await apiClient.get(url);
+        setMerchantDetail(data);
+      } catch (err) {
+        console.error('Error fetching merchant detail:', err);
+        setMerchantDetail(null);
+      } finally {
+        setLoadingMerchant(false);
+      }
+    };
+
+    fetchMerchant();
+  }, [selectedMerchant, from, to]);
 
   // Obtener lista de merchants únicos desde activeIssues
   const allMerchants = Array.from(
@@ -37,41 +70,32 @@ const Merchants = () => {
   ).sort();
 
   // Obtener issues del merchant seleccionado
-  const merchantIssues = selectedMerchant
-    ? (overview?.activeIssues || []).filter(i => i.merchantId === selectedMerchant)
-    : [];
+  const merchantIssues = merchantDetail?.issues || [];
 
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
-    if (merchantIssues.length === 0) {
-      return {
-        totalPayins: 0,
-        successRate: 0,
-        failedPayins: 0,
-        totalVolume: '$0.0K',
-        avgLatency: '0s',
-        successCount: 0,
-        failureRate: 0
-      };
-    }
+    if (!merchantDetail) return { totalPayins: 0, successRate: 0, failedPayins: 0, totalVolume: '$0.0K', avgLatency: '0s', successCount: 0, failureRate: 0 };
 
-    const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
-    const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
-    const totalSuccess = totalEvents - totalFailed;
-    const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
-    const avgLatency = merchantIssues.length > 0 
-      ? (merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length / 1000).toFixed(2)
-      : '0.00';
-    const failureRate = totalEvents > 0 ? ((totalFailed / totalEvents) * 100).toFixed(1) : '0.0';
+    const totalEvents = merchantDetail.totalEvents || 0;
+    const failed = merchantDetail.failedEvents || 0;
+    const success = merchantDetail.successEvents || (totalEvents - failed);
+
+    const successRate = totalEvents ? (success / totalEvents) * 100 : 0;
+    const failureRate = totalEvents ? (failed / totalEvents) * 100 : 0;
+
+    const avgLatencyMs =
+      (merchantDetail.providers || []).length
+        ? (merchantDetail.providers.reduce((sum, p) => sum + (p.avgLatencyMs || 0), 0) / merchantDetail.providers.length)
+        : 0;
 
     return {
       totalPayins: totalEvents,
-      successRate: parseFloat(successRate),
-      failedPayins: totalFailed,
-      totalVolume: '$0.0K',
-      avgLatency: `${avgLatency}s`,
-      successCount: totalSuccess,
-      failureRate: parseFloat(failureRate)
+      successRate: Number(successRate.toFixed(1)),
+      failedPayins: failed,
+      totalVolume: merchantDetail.failedAmount ? `$${merchantDetail.failedAmount}` : '$0.0K',
+      avgLatency: `${(avgLatencyMs / 1000).toFixed(2)}s`,
+      successCount: success,
+      failureRate: Number(failureRate.toFixed(1))
     };
   };
 
@@ -80,24 +104,29 @@ const Merchants = () => {
   // Analizar problemas por provider
   const getProviderStatus = () => {
     const status = {};
-    merchantIssues.forEach(issue => {
-      if (!status[issue.provider]) {
-        status[issue.provider] = { 
-          total: 0, 
-          failed: 0, 
-          errors: [],
-          impactLevel: issue.impactLevel,
-          latencyMs: issue.avgLatencyMs,
-          merchantName: issue.merchantName,
-          country: issue.countryCode
-        };
-      }
-      status[issue.provider].total += issue.totalEvents || 0;
-      status[issue.provider].failed += issue.failedEvents || 0;
-      if (issue.mainErrorType) {
-        status[issue.provider].errors.push(issue.incidentTag);
-      }
+
+    // Si tu endpoint /merchants/{id} devuelve providers breakdown:
+    (merchantDetail?.providers || []).forEach(p => {
+      status[p.provider] = {
+        total: p.totalEvents || 0,
+        failed: p.failedEvents || 0,
+        latencyMs: p.avgLatencyMs || 0,
+        errors: [] // opcional: lo puedes cruzar con issues para listar incidentTags
+      };
     });
+
+    // Fallback si no viene providers:
+    if (Object.keys(status).length === 0) {
+      merchantIssues.forEach(issue => {
+        if (!status[issue.provider]) {
+          status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
+        }
+        status[issue.provider].total += issue.totalEvents || 0;
+        status[issue.provider].failed += issue.failedEvents || 0;
+        if (issue.incidentTag) status[issue.provider].errors.push(issue.incidentTag);
+      });
+    }
+
     return status;
   };
 
@@ -212,6 +241,39 @@ const Merchants = () => {
             })}
           </Select>
         </FormControl>
+          {/* Date range (historical filter) */}
+        <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+          <FormControl>
+            <Typography
+              variant="caption"
+              sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}
+            >
+              From
+            </Typography>
+            <input
+              type="datetime-local"
+              value={from.slice(0, 16)}
+              onChange={(e) => setFrom(normalizeDT(e.target.value))}
+              style={{ padding: 10, borderRadius: 8 }}
+            />
+          </FormControl>
+
+          <FormControl>
+            <Typography
+              variant="caption"
+              sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}
+            >
+              To
+            </Typography>
+            <input
+              type="datetime-local"
+              value={to.slice(0, 16)}
+              onChange={(e) => setTo(normalizeDT(e.target.value))}
+              style={{ padding: 10, borderRadius: 8 }}
+            />
+          </FormControl>
+        </Box>
+
       </Box>
 
       {/* Content */}
