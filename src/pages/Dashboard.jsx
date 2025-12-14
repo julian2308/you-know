@@ -30,7 +30,7 @@ const Dashboard = () => {
       const data = await apiClient.get(url);
       setOverview(data);
     } catch (err) {
-      setError('Error al cargar datos del backend');
+      setError('Error loading backend data');
     } finally {
       setLoading(false);
     }
@@ -42,10 +42,12 @@ const Dashboard = () => {
 
   // Obtener lista de países únicos desde los eventos
   const allCountries = Array.from(new Set((overview?.events || []).map(p => p.country))).sort();
+  
   // Filtrar payins por país
   const payins = selectedCountry === 'ALL'
     ? (overview?.events || [])
     : (overview?.events || []).filter(p => p.country === selectedCountry);
+  
   const succeeded = payins.filter(p => p.status === 'SUCCEEDED').length;
   const failed = payins.filter(p => p.status === 'FAILED').length;
   const totalPayins = payins.length;
@@ -53,9 +55,10 @@ const Dashboard = () => {
   const totalVolume = payins.reduce((sum, p) => sum + (p.amount || 0), 0);
   const avgLatency = totalPayins > 0 ? (payins.reduce((sum, p) => sum + (p.processing_time_sec || (p.latency_ms ? p.latency_ms / 1000 : 0)), 0) / totalPayins).toFixed(2) : '0.00';
 
-  // Security Score y factores (puedes adaptar según tu lógica)
+  // Security Score y factores desde el backend
   const securityScore = overview?.securityScore || 100;
   const securityFactors = overview?.securityFactors || { success: 0, latency: 0, diversification: 0 };
+  
   const getSecurityGrade = (score) => {
     if (score >= 95) return 'A+';
     if (score >= 90) return 'A';
@@ -65,74 +68,78 @@ const Dashboard = () => {
     return 'F';
   };
 
-  // Generar alertas inteligentes por proveedor
-  const generateAlerts = () => {
-    const alerts = [];
-    const providerErrors = {};
-
-    // Agrupar errores por proveedor
-    payins.forEach(payin => {
-      if (payin.status === 'FAILED') {
-        if (!providerErrors[payin.provider]) {
-          providerErrors[payin.provider] = [];
-        }
-        providerErrors[payin.provider].push(payin);
-      }
-    });
-
-    // Crear alertas basadas en errores
-    Object.entries(providerErrors).forEach(([provider, failedPayins]) => {
-      const failureRate = (failedPayins.length / payins.filter(p => p.provider === provider).length) * 100;
-      const totalImpact = failedPayins.reduce((sum, p) => sum + p.amount, 0);
-
-      // Determinar severidad basada en el score de seguridad y tasa de fallo
-      let severity = 'info';
-      if (securityScore < 60 || failureRate > 50) severity = 'critical';
-      else if (failureRate > 25 || securityScore < 80) severity = 'warning';
-
-      const errorType = failedPayins[0].error_code;
-      const actions = [
-        'Review detailed error logs',
-        'Contact technical support'
-      ];
-
-      alerts.push({
-        id: `${provider}-${Date.now()}`,
-        provider,
-        severity,
-        errorCode: errorType,
-        errorMessage: failedPayins[0].error_message,
-        failureCount: failedPayins.length,
-        failureRate: failureRate.toFixed(1),
-        totalImpact,
-        actions,
-        affectedPayins: failedPayins
-      });
-    });
-
-    return alerts.sort((a, b) => {
-      const severityOrder = { critical: 0, warning: 1, info: 2 };
-      return severityOrder[a.severity] - severityOrder[b.severity];
-    });
-  };
-  // Alertas desde el backend (incidents)
+  // Alertas desde el backend
   const alerts = overview?.activeIssues || [];
 
   if (loading) {
-    return <Box sx={{ p: 6, textAlign: 'center' }}><Typography>Cargando datos...</Typography></Box>;
+    return (
+      <Box sx={{ p: 6, textAlign: 'center' }}>
+        <Typography>Loading data...</Typography>
+      </Box>
+    );
   }
+  
   if (error) {
-    return <Box sx={{ p: 6, textAlign: 'center', color: 'red' }}><Typography>{error}</Typography></Box>;
+    return (
+      <Box sx={{ p: 6, textAlign: 'center', color: 'red' }}>
+        <Typography>{error}</Typography>
+      </Box>
+    );
   }
 
   const kpis = {
     totalPayins,
-    successRate,
-    totalVolume: `$${totalVolume.toFixed(2)}`,
+    successRate: parseFloat(successRate),
+    failedPayins: failed,
+    totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
     avgLatency: `${avgLatency}s`,
-    securityScore,
+    providers: Array.from(new Set(payins.map(p => p.provider))).length,
+    securityScore: securityScore.toFixed(1),
     securityGrade: getSecurityGrade(securityScore),
+    alertCount: alerts.filter(a => a.severity === 'critical').length
   };
+
+  const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
+    <Paper sx={{ 
+      p: 3, 
+      display: 'flex', 
+      flexDirection: 'column',
+      alignItems: 'center',
+      background: bgColor,
+      border: `1px solid ${color}33`,
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-4px)',
+        boxShadow: `0 12px 24px ${color}20`,
+      }
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ 
+          p: 1, 
+          borderRadius: '8px', 
+          background: color,
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mr: 1
+        }}>
+          <IconComponent sx={{ fontSize: 22 }} />
+        </Box>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {title}
+        </Typography>
+      </Box>
+      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" sx={{ color: '#A0AEC0', textAlign: 'center', display: 'block' }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Paper>
+  );
 
   return (
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
@@ -171,24 +178,7 @@ const Dashboard = () => {
             </Select>
           </FormControl>
         </Box>
-    <Box sx={{ p: 4, backgroundColor: '#0D1B2A', color: '#E2E8F0', minHeight: '100vh' }}>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>Dashboard</Typography>
-        <FormControl sx={{ minWidth: 150 }}>
-          <Select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            sx={{ color: '#E2E8F0', backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
-          >
-            <MenuItem value="ALL">Todos los países</MenuItem>
-            {allCountries.map((country) => (
-              <MenuItem key={country} value={country}>{country}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
       </Box>
-
-      {/* Quick Alerts Card (removed, now only in Topbar) */}
 
       {/* KPIs Grid */}
       <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' } }}>
@@ -247,9 +237,7 @@ const Dashboard = () => {
             <Box sx={{ space: 2 }}>
               {Array.from(new Set(payins.map(p => p.provider))).map((provider, idx) => {
                 const providerPayins = payins.filter(p => p.provider === provider);
-                const percentage = ((providerPayins.length / totalPayins) * 100).toFixed(0);
-                const providerSuccess = providerPayins.filter(p => p.status === 'SUCCEEDED').length;
-                const providerSuccessRate = ((providerSuccess / providerPayins.length) * 100).toFixed(0);
+                const percentage = totalPayins > 0 ? ((providerPayins.length / totalPayins) * 100).toFixed(0) : '0';
                 return (
                   <Box key={idx} sx={{ mb: 2.5 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -366,9 +354,9 @@ const Dashboard = () => {
             <tbody>
               {payins.slice(0, 10).map((payin, idx) => (
                 <tr key={idx}>
-                  <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payin.payin_id}</Typography></td>
-                  <td><Typography variant="body2">{payin.merchant_id}</Typography></td>
-                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>${payin.amount.toFixed(2)}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payin.payin_id || payin.id}</Typography></td>
+                  <td><Typography variant="body2">{payin.merchant_id || payin.merchantId}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>${(payin.amount || 0).toFixed(2)}</Typography></td>
                   <td><Typography variant="body2">{payin.provider}</Typography></td>
                   <td><Typography variant="body2" sx={{ fontWeight: 600 }}>{payin.country}</Typography></td>
                   <td>
@@ -389,8 +377,8 @@ const Dashboard = () => {
                   <td>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
                       {payin.status === 'SUCCEEDED' 
-                        ? `${payin.processing_time_sec || Math.round(payin.latency_ms / 1000)}s`
-                        : payin.error_code
+                        ? `${payin.processing_time_sec || Math.round((payin.latency_ms || 0) / 1000)}s`
+                        : payin.error_code || payin.errorCode
                       }
                     </Typography>
                   </td>
