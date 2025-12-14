@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
 import Providers from './pages/Providers';
 import { mockData } from './data/mockData';
-import usePayoutMetrics from './hooks/usePayoutMetrics';
+import usePayinMetrics from './hooks/usePayinMetrics';
 import useSecurityScore from './hooks/useSecurityScore';
 import useAlerts from './hooks/useAlerts';
 import { useEffect, useState } from "react";
@@ -116,10 +116,10 @@ const App = () => {
   }, []);
   
   // Obtener métricas y alertas críticas
-  const payouts = mockData.payoutEvents;
-  const metrics = usePayoutMetrics(payouts);
-  const security = useSecurityScore(payouts, metrics.successRate);
-  const allAlerts = useAlerts(payouts, security.score);
+  const payins = mockData.payinEvents;
+  const metrics = usePayinMetrics(payins);
+  const security = useSecurityScore(payins, metrics.successRate);
+  const allAlerts = useAlerts(payins, security.score);
   const criticalAlerts = allAlerts.filter(a => a.severity === 'critical').slice(0, 3);
 
 
@@ -169,7 +169,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/providers" element={<Providers />} />
-                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/alerts" element={<Alerts allAlerts={allAlerts} />} />
               </Routes>
             </Box>
           </Box>

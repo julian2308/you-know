@@ -12,26 +12,26 @@ import {
   ERROR_ACTIONS
 } from '../constants/alertConfig';
 
-export const useAlerts = (payoutEvents, securityScore) => {
+export const useAlerts = (payinEvents, securityScore) => {
   const alerts = useMemo(() => {
     const alertsList = [];
     const providerErrors = {};
 
     // Agrupar errores por proveedor
-    payoutEvents.forEach(payout => {
-      if (payout.status === 'FAILED') {
-        if (!providerErrors[payout.provider]) {
-          providerErrors[payout.provider] = [];
+    payinEvents.forEach(payin => {
+      if (payin.status === 'FAILED') {
+        if (!providerErrors[payin.provider]) {
+          providerErrors[payin.provider] = [];
         }
-        providerErrors[payout.provider].push(payout);
+        providerErrors[payin.provider].push(payin);
       }
     });
 
     // Crear alertas basadas en errores
-    Object.entries(providerErrors).forEach(([provider, failedPayouts]) => {
-      const providerPayouts = payoutEvents.filter(p => p.provider === provider);
-      const failureRate = (failedPayouts.length / providerPayouts.length) * 100;
-      const totalImpact = failedPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+    Object.entries(providerErrors).forEach(([provider, failedPayins]) => {
+      const providerPayins = payinEvents.filter(p => p.provider === provider);
+      const failureRate = (failedPayins.length / providerPayins.length) * 100;
+      const totalImpact = failedPayins.reduce((sum, p) => sum + (p.amount || 0), 0);
 
       // Determinar severidad basada en seguridad y tasa de fallo
       let severity = SEVERITY_LEVELS.INFO;
@@ -47,7 +47,7 @@ export const useAlerts = (payoutEvents, securityScore) => {
       }
 
       // Obtener acciones recomendadas
-      const errorType = failedPayouts[0].error_code;
+      const errorType = failedPayins[0].error_code;
       const actions = ERROR_ACTIONS[errorType] || SEVERITY_THRESHOLDS.DEFAULT_ACTIONS;
 
       alertsList.push({
@@ -55,12 +55,12 @@ export const useAlerts = (payoutEvents, securityScore) => {
         provider,
         severity,
         errorCode: errorType,
-        errorMessage: failedPayouts[0].error_message,
-        failureCount: failedPayouts.length,
+        errorMessage: failedPayins[0].error_message,
+        failureCount: failedPayins.length,
         failureRate: failureRate.toFixed(1),
         totalImpact,
         actions,
-        affectedPayouts: failedPayouts
+        affectedPayins: failedPayins
       });
     });
 
@@ -68,7 +68,7 @@ export const useAlerts = (payoutEvents, securityScore) => {
     return alertsList.sort((a, b) => {
       return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
     });
-  }, [payoutEvents, securityScore]);
+  }, [payinEvents, securityScore]);
 
   return alerts;
 };

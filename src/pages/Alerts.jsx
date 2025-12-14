@@ -25,7 +25,7 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { mockData } from '../data/mockData';
 import { client } from '../conf/ws';
 
-const Alerts = () => {
+const Alerts = ({ allAlerts: initialAlerts = [] }) => {
   const [expandedAlert, setExpandedAlert] = useState(null);
   const [filterTab, setFilterTab] = useState(0);
   const [realtimeAlerts, setRealtimeAlerts] = useState([]);
@@ -33,17 +33,17 @@ const Alerts = () => {
   /* =========================
      MÉTRICAS (NO TOCAR)
      ========================= */
-  const payouts = mockData.payoutEvents;
-  const succeeded = payouts.filter(p => p.status === 'SUCCEEDED').length;
-  const failed = payouts.filter(p => p.status === 'FAILED').length;
-  const totalPayouts = payouts.length;
-  const successRate = ((succeeded / totalPayouts) * 100).toFixed(1);
-  const totalVolume = payouts.reduce((sum, p) => sum + p.amount, 0);
+  const payins = mockData.payinEvents;
+  const succeeded = payins.filter(p => p.status === 'SUCCEEDED').length;
+  const failed = payins.filter(p => p.status === 'FAILED').length;
+  const totalPayins = payins.length;
+  const successRate = ((succeeded / totalPayins) * 100).toFixed(1);
+  const totalVolume = payins.reduce((sum, p) => sum + p.amount, 0);
   const avgLatency = (
-    payouts.reduce(
+    payins.reduce(
       (sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000),
       0
-    ) / totalPayouts
+    ) / totalPayins
   ).toFixed(2);
 
   const calculateSecurityScore = () => {
@@ -51,20 +51,20 @@ const Alerts = () => {
     const successFactor = (parseFloat(successRate) / 100) * 40;
     score -= (40 - successFactor);
 
-    const passedRiskChecks = payouts.filter(
+    const passedRiskChecks = payins.filter(
       p => p.risk_checks && p.risk_checks.length > 0
     ).length;
-    const riskCheckFactor = (passedRiskChecks / totalPayouts) * 30;
+    const riskCheckFactor = (passedRiskChecks / totalPayins) * 30;
     score -= (30 - riskCheckFactor);
 
-    const timeouts = payouts.filter(
+    const timeouts = payins.filter(
       p => p.error_code === 'PROVIDER_TIMEOUT'
     ).length;
-    const latencyPenalty = (timeouts / totalPayouts) * 20;
+    const latencyPenalty = (timeouts / totalPayins) * 20;
     score -= latencyPenalty;
 
     const providers = Array.from(
-      new Set(payouts.map(p => p.provider))
+      new Set(payins.map(p => p.provider))
     ).length;
     const diversificationFactor = Math.min((providers / 3) * 10, 10);
     score += diversificationFactor;
@@ -102,7 +102,7 @@ const Alerts = () => {
             'Validar estado del proveedor',
             'Contactar soporte'
           ],
-          affectedPayouts: []
+          affectedPayins: []
         };
 
         setRealtimeAlerts(prev => [adaptedAlert, ...prev]);
@@ -116,7 +116,7 @@ const Alerts = () => {
   /* =========================
      ALERTAS (SOLO WS)
      ========================= */
-  const allAlerts = realtimeAlerts;
+  const allAlerts = initialAlerts.length > 0 ? initialAlerts : realtimeAlerts;
 
   const filteredAlerts =
     filterTab === 0

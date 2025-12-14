@@ -16,18 +16,18 @@ const Dashboard = () => {
   const [selectedCountry, setSelectedCountry] = useState('ALL');
   
   // Obtener lista de países únicos
-  const allCountries = Array.from(new Set(mockData.payoutEvents.map(p => p.country))).sort();
-  
-  // Filtrar payouts por país
-  const payouts = selectedCountry === 'ALL' 
-    ? mockData.payoutEvents 
-    : mockData.payoutEvents.filter(p => p.country === selectedCountry);
-  const succeeded = payouts.filter(p => p.status === 'SUCCEEDED').length;
-  const failed = payouts.filter(p => p.status === 'FAILED').length;
-  const totalPayouts = payouts.length;
-  const successRate = ((succeeded / totalPayouts) * 100).toFixed(1);
-  const totalVolume = payouts.reduce((sum, p) => sum + p.amount, 0);
-  const avgLatency = (payouts.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / totalPayouts).toFixed(2);
+  const allCountries = Array.from(new Set(mockData.payinEvents.map(p => p.country))).sort();
+
+  // Filtrar payins por país
+  const payins = selectedCountry === 'ALL' 
+    ? mockData.payinEvents 
+    : mockData.payinEvents.filter(p => p.country === selectedCountry);
+  const succeeded = payins.filter(p => p.status === 'SUCCEEDED').length;
+  const failed = payins.filter(p => p.status === 'FAILED').length;
+  const totalPayins = payins.length;
+  const successRate = ((succeeded / totalPayins) * 100).toFixed(1);
+  const totalVolume = payins.reduce((sum, p) => sum + p.amount, 0);
+  const avgLatency = (payins.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / totalPayins).toFixed(2);
 
   // Calcular Security Score basado en múltiples factores
   const calculateSecurityScore = () => {
@@ -38,13 +38,13 @@ const Dashboard = () => {
     score -= (60 - successFactor);
     
     // 2. Factor: Latencia (20 puntos máx - penalizar timeouts)
-    const timeouts = payouts.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length;
-    const latencyPenalty = (timeouts / totalPayouts) * 20;
+    const timeouts = payins.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length;
+    const latencyPenalty = (timeouts / totalPayins) * 20;
     score -= latencyPenalty;
     
     // 3. Factor: Diversificación de proveedores por país (20 puntos máx)
     const providersByCountry = {};
-    payouts.forEach(p => {
+    payins.forEach(p => {
       if (!providersByCountry[p.country]) {
         providersByCountry[p.country] = new Set();
       }
@@ -90,19 +90,19 @@ const Dashboard = () => {
     const providerErrors = {};
 
     // Agrupar errores por proveedor
-    payouts.forEach(payout => {
-      if (payout.status === 'FAILED') {
-        if (!providerErrors[payout.provider]) {
-          providerErrors[payout.provider] = [];
+    payins.forEach(payin => {
+      if (payin.status === 'FAILED') {
+        if (!providerErrors[payin.provider]) {
+          providerErrors[payin.provider] = [];
         }
-        providerErrors[payout.provider].push(payout);
+        providerErrors[payin.provider].push(payin);
       }
     });
 
     // Crear alertas basadas en errores
-    Object.entries(providerErrors).forEach(([provider, failedPayouts]) => {
-      const failureRate = (failedPayouts.length / payouts.filter(p => p.provider === provider).length) * 100;
-      const totalImpact = failedPayouts.reduce((sum, p) => sum + p.amount, 0);
+    Object.entries(providerErrors).forEach(([provider, failedPayins]) => {
+      const failureRate = (failedPayins.length / payins.filter(p => p.provider === provider).length) * 100;
+      const totalImpact = failedPayins.reduce((sum, p) => sum + p.amount, 0);
 
       // Determinar severidad basada en el score de seguridad y tasa de fallo
       let severity = 'info';
@@ -120,7 +120,7 @@ const Dashboard = () => {
         'INSUFFICIENT_FUNDS': [
           'Recargar balance de cuenta del proveedor',
           'Configurar fallback a proveedor alternativo',
-          'Revisar límites de payout establecidos'
+          'Revisar límites de payin establecidos'
         ],
         'INVALID_ACCOUNT': [
           'Verificar datos de cuenta del destinatario',
@@ -129,7 +129,7 @@ const Dashboard = () => {
         ]
       };
 
-      const errorType = failedPayouts[0].error_code;
+      const errorType = failedPayins[0].error_code;
       const actions = actionsByError[errorType] || [
         'Revisar logs de error detallados',
         'Contactar soporte técnico'
@@ -140,12 +140,12 @@ const Dashboard = () => {
         provider,
         severity,
         errorCode: errorType,
-        errorMessage: failedPayouts[0].error_message,
-        failureCount: failedPayouts.length,
+        errorMessage: failedPayins[0].error_message,
+        failureCount: failedPayins.length,
         failureRate: failureRate.toFixed(1),
         totalImpact,
         actions,
-        affectedPayouts: failedPayouts
+        affectedPayins: failedPayins
       });
     });
 
@@ -171,12 +171,12 @@ const Dashboard = () => {
   };
 
   const kpis = {
-    totalPayouts,
+    totalPayins,
     successRate: parseFloat(successRate),
-    failedPayouts: failed,
+    failedPayins: failed,
     totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
     avgLatency: `${avgLatency}s`,
-    providers: Array.from(new Set(payouts.map(p => p.provider))).length,
+    providers: Array.from(new Set(payins.map(p => p.provider))).length,
     securityScore: securityScore.toFixed(1),
     securityGrade: getSecurityGrade(securityScore),
     alertCount: alerts.filter(a => a.severity === 'critical').length
@@ -231,7 +231,7 @@ const Dashboard = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ textAlign: 'left' }}>
             <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-              Panel de Control de Payouts
+              Panel de Control de Payins
             </Typography>
             <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
               Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
@@ -270,8 +270,8 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={TrendingUpIcon}
-            title="Payouts Procesados"
-            value={kpis.totalPayouts}
+            title="Payins Procesados"
+            value={kpis.totalPayins}
             subtitle="Total en período"
             color="#0F7AFF"
             bgColor="rgba(15, 122, 255, 0.1)"
@@ -282,7 +282,7 @@ const Dashboard = () => {
             icon={CheckCircleIcon}
             title="Tasa de Éxito"
             value={`${kpis.successRate}%`}
-            subtitle="Payouts completados"
+            subtitle="Payins completados"
             color="#00D084"
             bgColor="rgba(0, 208, 132, 0.1)"
           />
@@ -320,11 +320,11 @@ const Dashboard = () => {
               </Typography>
             </Box>
             <Box sx={{ space: 2 }}>
-              {Array.from(new Set(payouts.map(p => p.provider))).map((provider, idx) => {
-                const providerPayouts = payouts.filter(p => p.provider === provider);
-                const percentage = ((providerPayouts.length / totalPayouts) * 100).toFixed(0);
-                const providerSuccess = providerPayouts.filter(p => p.status === 'SUCCEEDED').length;
-                const providerSuccessRate = ((providerSuccess / providerPayouts.length) * 100).toFixed(0);
+              {Array.from(new Set(payins.map(p => p.provider))).map((provider, idx) => {
+                const providerPayins = payins.filter(p => p.provider === provider);
+                const percentage = ((providerPayins.length / totalPayins) * 100).toFixed(0);
+                const providerSuccess = providerPayins.filter(p => p.status === 'SUCCEEDED').length;
+                const providerSuccessRate = ((providerSuccess / providerPayins.length) * 100).toFixed(0);
                 return (
                   <Box key={idx} sx={{ mb: 2.5 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -366,10 +366,10 @@ const Dashboard = () => {
                   <Box sx={{ width: { xs: '80px', md: '1px' }, height: { xs: '1px', md: '80px' }, backgroundColor: 'rgba(0, 208, 132, 0.3)' }} />
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 2 }}>
-                      Payouts Verificados
+                      Payins Verificados
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
-                      {succeeded}/{totalPayouts}
+                      {succeeded}/{totalPayins}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
                       Transacciones exitosas
@@ -398,10 +398,10 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Payouts Recientes */}
+      {/* Payins Recientes */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-          Eventos de Payout Recientes
+          Eventos de Payin Recientes
         </Typography>
         <Box sx={{ 
           overflowX: 'auto',
@@ -429,7 +429,7 @@ const Dashboard = () => {
           <table>
             <thead>
               <tr>
-                <th>Payout ID</th>
+                <th>Payin ID</th>
                 <th>Comercio</th>
                 <th>Monto</th>
                 <th>Proveedor</th>
@@ -439,16 +439,16 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {payouts.slice(0, 10).map((payout, idx) => (
+              {payins.slice(0, 10).map((payin, idx) => (
                 <tr key={idx}>
-                  <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payout.payout_id}</Typography></td>
-                  <td><Typography variant="body2">{payout.merchant_id}</Typography></td>
-                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>${payout.amount.toFixed(2)}</Typography></td>
-                  <td><Typography variant="body2">{payout.provider}</Typography></td>
-                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>{payout.country}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payin.payin_id}</Typography></td>
+                  <td><Typography variant="body2">{payin.merchant_id}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>${payin.amount.toFixed(2)}</Typography></td>
+                  <td><Typography variant="body2">{payin.provider}</Typography></td>
+                  <td><Typography variant="body2" sx={{ fontWeight: 600 }}>{payin.country}</Typography></td>
                   <td>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {payout.status === 'SUCCEEDED' ? (
+                      {payin.status === 'SUCCEEDED' ? (
                         <>
                           <CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} />
                           <Typography variant="body2">Exitoso</Typography>
@@ -463,9 +463,9 @@ const Dashboard = () => {
                   </td>
                   <td>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                      {payout.status === 'SUCCEEDED' 
-                        ? `${payout.processing_time_sec || Math.round(payout.latency_ms / 1000)}s`
-                        : payout.error_code
+                      {payin.status === 'SUCCEEDED' 
+                        ? `${payin.processing_time_sec || Math.round(payin.latency_ms / 1000)}s`
+                        : payin.error_code
                       }
                     </Typography>
                   </td>

@@ -81,7 +81,7 @@ const Topbar = ({ alerts = [], onMenuClick }) => {
                 <Typography variant="body2" sx={{ fontWeight: 700, color: '#FF3B30' }}>{alert.provider}</Typography>
                 <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>{alert.errorMessage}</Typography>
                 <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
-                  {alert.failureCount} payout(s) fallido(s) • Tasa: {alert.failureRate}%
+                  {alert.failureCount} payin(s) fallido(s) • Tasa: {alert.failureRate}%
                 </Typography>
               </Box>
             </MenuItem>
