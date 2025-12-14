@@ -27,7 +27,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
-import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import { OVERVIEW_ENDPOINT, CRITICAL_ALERTS_ENDPOINT, apiClient } from '../config/apiConfig';
 import errorRecommendations from '../constants/errorRecommendations.json';
 
 const Alerts = () => {
@@ -35,8 +35,8 @@ const Alerts = () => {
   const [allAlerts, setAllAlerts] = useState([]);
   const [criticalAlerts, setCriticalAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState('2025-12-10T08:00');
-  const [toDate, setToDate] = useState('2025-12-15T12:00');
+  const [fromDate, setFromDate] = useState('2020-01-01T00:00');
+  const [toDate, setToDate] = useState('2099-12-31T23:59');
   const [expandedAlerts, setExpandedAlerts] = useState({});
 
   // Map error codes to known recommendation codes
@@ -178,7 +178,7 @@ const Alerts = () => {
         const data = await apiClient.get(url);
 
         // Map activeIssues to alerts format - only include issues with failures (excluding user-cancelled)
-        // Current alerts are all warnings. Critical alerts will come from a separate table in the future.
+        // Current alerts are all warnings. Critical alerts will come from a separate table.
         const allProcessedAlerts = (data?.activeIssues || [])
           .filter(issue => {
             const isCancelled = issue.mainErrorCategory === 'USER';
@@ -206,9 +206,42 @@ const Alerts = () => {
             mainErrorType: issue.mainErrorType
           }));
 
-        // Separate critical from regular alerts
-        const criticals = allProcessedAlerts.filter(a => a.isCritical);
-        const regulars = allProcessedAlerts.filter(a => !a.isCritical);
+        // Obtener alertas críticas desde /api/alertas
+        let criticalProcessedAlerts = [];
+        try {
+          const criticalUrl = CRITICAL_ALERTS_ENDPOINT(fromDate, toDate);
+          const criticalData = await apiClient.get(criticalUrl);
+          
+          // El API devuelve un array directo, no un objeto con propiedad alertas
+          criticalProcessedAlerts = (Array.isArray(criticalData) ? criticalData : [])
+            .map(alert => ({
+              id: `${alert.merchantName}-${alert.incidentTag}`,
+              provider: alert.provider,
+              isCritical: true,
+              severity: 'critical',
+              errorCode: alert.incidentTag,
+              errorMessage: alert.incidentTag,
+              description: `Critical alert for ${alert.provider} in ${alert.countryCode}`,
+              failureCount: 0,
+              failureRate: '0',
+              merchantName: alert.merchantName,
+              countryCode: alert.countryCode,
+              paymentMethod: '',
+              suggestedAction: '',
+              firstSeen: alert.lastSeen,
+              lastSeen: alert.lastSeen,
+              mainErrorCategory: alert.category || 'CRITICAL',
+              totalEvents: 0,
+              mainErrorType: ''
+            }));
+        } catch (err) {
+          // Si el endpoint de alertas críticas falla, continuar sin ellas
+          console.log('No critical alerts endpoint available or error fetching critical alerts');
+        }
+
+        // Separar alertas críticas de regulares
+        const regulars = allProcessedAlerts;
+        const criticals = criticalProcessedAlerts;
 
         setCriticalAlerts(criticals);
         setAllAlerts(regulars);

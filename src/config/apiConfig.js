@@ -18,6 +18,10 @@ export const MERCHANT_DETAIL_ENDPOINT = (merchantId, from, to) =>
 export const ALL_MERCHANTS_ENDPOINT = () =>
   `${API_BASE_URL}/merchants`;
 
+// Endpoint para obtener alertas críticas
+export const CRITICAL_ALERTS_ENDPOINT = (from, to) =>
+  `${API_BASE_URL}/alertas?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+
 
 // Endpoints de Providers
 const PROVIDERS_ENDPOINTS = {
