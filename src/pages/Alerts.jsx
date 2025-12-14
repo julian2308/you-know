@@ -33,6 +33,7 @@ import errorRecommendations from '../constants/errorRecommendations.json';
 const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
   const [allAlerts, setAllAlerts] = useState([]);
+  const [criticalAlerts, setCriticalAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fromDate, setFromDate] = useState('2025-12-10T08:00');
   const [toDate, setToDate] = useState('2025-12-15T12:00');
@@ -88,7 +89,7 @@ const Alerts = () => {
         const data = await apiClient.get(url);
 
         // Map activeIssues to alerts format - only include issues with failures (excluding user-cancelled)
-        const alerts = (data?.activeIssues || [])
+        const allProcessedAlerts = (data?.activeIssues || [])
           .filter(issue => {
             const isCancelled = issue.mainErrorCategory === 'USER';
             const hasFailures = (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0;
@@ -97,12 +98,8 @@ const Alerts = () => {
           .map(issue => ({
             id: `${issue.merchantId}-${issue.incidentTag}`,
             provider: issue.provider,
-            severity:
-              issue.impactLevel === 'high'
-                ? 'critical'
-                : issue.impactLevel === 'medium'
-                ? 'warning'
-                : 'info',
+            isCritical: issue.impactLevel === 'high',
+            severity: 'warning',
             errorCode: issue.incidentTag,
             errorMessage: issue.title,
             description: issue.description,
@@ -116,7 +113,12 @@ const Alerts = () => {
             lastSeen: issue.lastSeen
           }));
 
-        setAllAlerts(alerts);
+        // Separate critical from regular alerts
+        const criticals = allProcessedAlerts.filter(a => a.isCritical);
+        const regulars = allProcessedAlerts.filter(a => !a.isCritical);
+
+        setCriticalAlerts(criticals);
+        setAllAlerts(regulars);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching alerts:', err);
@@ -127,39 +129,23 @@ const Alerts = () => {
     fetchAlerts();
   }, [fromDate, toDate]);
 
-  const filteredAlerts =
-    filterTab === 0
-      ? allAlerts
-      : filterTab === 1
-      ? allAlerts.filter(a => a.severity === 'critical')
-      : filterTab === 2
-      ? allAlerts.filter(a => a.severity === 'warning')
-      : allAlerts.filter(a => a.severity === 'info');
+  const filteredAlerts = filterTab === 0 ? allAlerts : criticalAlerts;
 
-  const getSeverityColor = severity => {
-    switch (severity) {
-      case 'critical':
-        return {
-          bg: 'rgba(255, 59, 48, 0.1)',
-          border: '#FF3B30',
-          icon: '#FF3B30',
-          text: 'CRITICAL'
-        };
-      case 'warning':
-        return {
-          bg: 'rgba(255, 149, 0, 0.1)',
-          border: '#FF9500',
-          icon: '#FF9500',
-          text: 'WARNING'
-        };
-      default:
-        return {
-          bg: 'rgba(15, 122, 255, 0.1)',
-          border: '#0F7AFF',
-          icon: '#0F7AFF',
-          text: 'INFO'
-        };
+  const getSeverityColor = (severity, isCritical) => {
+    if (isCritical) {
+      return {
+        bg: 'rgba(255, 59, 48, 0.1)',
+        border: '#FF3B30',
+        icon: '#FF3B30',
+        text: 'CRITICAL'
+      };
     }
+    return {
+      bg: 'rgba(255, 149, 0, 0.1)',
+      border: '#FF9500',
+      icon: '#FF9500',
+      text: 'WARNING'
+    };
   };
 
   if (loading) {
@@ -194,17 +180,17 @@ const Alerts = () => {
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="caption">Critical</Typography>
+            <Typography variant="caption">Critical Issues</Typography>
             <Typography variant="h5" fontWeight={700} color="#FF3B30">
-              {allAlerts.filter(a => a.severity === 'critical').length}
+              {criticalAlerts.length}
             </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="caption">Warnings</Typography>
+            <Typography variant="caption">Total Issues</Typography>
             <Typography variant="h5" fontWeight={700} color="#FF9500">
-              {allAlerts.filter(a => a.severity === 'warning').length}
+              {allAlerts.length + criticalAlerts.length}
             </Typography>
           </Paper>
         </Grid>
@@ -213,10 +199,8 @@ const Alerts = () => {
       {/* FILTER TABS */}
       <Paper sx={{ mb: 3 }}>
         <Tabs value={filterTab} onChange={(e, v) => setFilterTab(v)}>
-          <Tab label={`All (${allAlerts.length})`} />
-          <Tab label={`Critical (${allAlerts.filter(a => a.severity === 'critical').length})`} />
-          <Tab label={`Warnings (${allAlerts.filter(a => a.severity === 'warning').length})`} />
-          <Tab label={`Info (${allAlerts.filter(a => a.severity === 'info').length})`} />
+          <Tab label={`Alerts (${allAlerts.length})`} />
+          <Tab label={`Critical (${criticalAlerts.length})`} />
         </Tabs>
       </Paper>
 
@@ -250,7 +234,7 @@ const Alerts = () => {
             </TableHead>
             <TableBody>
               {filteredAlerts.map(alert => {
-                const colors = getSeverityColor(alert.severity);
+                const colors = getSeverityColor(alert.severity, alert.isCritical);
                 const isExpanded = expandedAlerts[alert.id] || false;
                 const recommendation = getRecommendation(alert.errorCode);
 
@@ -296,7 +280,7 @@ const Alerts = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={alert.severity.toUpperCase()}
+                          label={alert.isCritical ? 'CRITICAL' : 'WARNING'}
                           size="small"
                           sx={{
                             background: colors.border,
