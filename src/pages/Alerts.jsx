@@ -67,7 +67,7 @@ const Alerts = () => {
     setTestLoading(true);
     try {
       // Construir la URL con el parámetro EMAIL
-      const url = `/alerts?email=${encodeURIComponent(email)}`;
+      const url = `https://preearthquake-shinily-lorenza.ngrok-free.dev/api/alerts?email=${encodeURIComponent(email)}`;
       
       // Datos de la alerta de prueba
       const alertData = {
