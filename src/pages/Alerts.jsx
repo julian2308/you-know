@@ -38,6 +38,14 @@ const Alerts = () => {
   const [fromDate, setFromDate] = useState('2020-01-01T00:00');
   const [toDate, setToDate] = useState('2099-12-31T23:59');
   const [expandedAlerts, setExpandedAlerts] = useState({});
+  
+  // Filtros de búsqueda
+  const [searchFilters, setSearchFilters] = useState({
+    provider: '',
+    incidentType: '',
+    merchant: '',
+    country: ''
+  });
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -254,7 +262,16 @@ const Alerts = () => {
     fetchAlerts();
   }, [fromDate, toDate]);
 
-  const filteredAlerts = filterTab === 0 ? allAlerts : criticalAlerts;
+  // Aplicar filtros de búsqueda
+  const baseAlerts = filterTab === 0 ? allAlerts : criticalAlerts;
+  const filteredAlerts = baseAlerts.filter(alert => {
+    const matchProvider = !searchFilters.provider || alert.provider?.toLowerCase().includes(searchFilters.provider.toLowerCase());
+    const matchIncident = !searchFilters.incidentType || alert.errorCode?.toLowerCase().includes(searchFilters.incidentType.toLowerCase());
+    const matchMerchant = !searchFilters.merchant || alert.merchantName?.toLowerCase().includes(searchFilters.merchant.toLowerCase());
+    const matchCountry = !searchFilters.country || alert.countryCode?.toLowerCase().includes(searchFilters.country.toLowerCase());
+    
+    return matchProvider && matchIncident && matchMerchant && matchCountry;
+  });
 
   const getSeverityColor = (severity, isCritical) => {
     if (isCritical) {
@@ -327,6 +344,100 @@ const Alerts = () => {
           <Tab label={`Alerts (${allAlerts.length})`} />
           <Tab label={`Critical (${criticalAlerts.length})`} />
         </Tabs>
+      </Paper>
+
+      {/* SEARCH FILTERS */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                Provider
+              </Typography>
+              <input
+                type="text"
+                placeholder="Search by provider..."
+                value={searchFilters.provider}
+                onChange={(e) => setSearchFilters({ ...searchFilters, provider: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#1E293B',
+                  color: '#fff',
+                  border: '1px solid #334155',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                Incident Type
+              </Typography>
+              <input
+                type="text"
+                placeholder="Search by incident type..."
+                value={searchFilters.incidentType}
+                onChange={(e) => setSearchFilters({ ...searchFilters, incidentType: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#1E293B',
+                  color: '#fff',
+                  border: '1px solid #334155',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                Merchant
+              </Typography>
+              <input
+                type="text"
+                placeholder="Search by merchant..."
+                value={searchFilters.merchant}
+                onChange={(e) => setSearchFilters({ ...searchFilters, merchant: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#1E293B',
+                  color: '#fff',
+                  border: '1px solid #334155',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                Country
+              </Typography>
+              <input
+                type="text"
+                placeholder="Search by country..."
+                value={searchFilters.country}
+                onChange={(e) => setSearchFilters({ ...searchFilters, country: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  backgroundColor: '#1E293B',
+                  color: '#fff',
+                  border: '1px solid #334155',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* ALERTAS (TABLA) */}
