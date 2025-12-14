@@ -14,6 +14,10 @@ export const OVERVIEW_ENDPOINT = (from, to) =>
 export const MERCHANT_DETAIL_ENDPOINT = (merchantId, from, to) =>
   `${API_BASE_URL}/merchants/${merchantId}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
+// Endpoint para obtener todos los merchants con sus providers
+export const ALL_MERCHANTS_ENDPOINT = () =>
+  `${API_BASE_URL}/merchants`;
+
 
 // Endpoints de Providers
 const PROVIDERS_ENDPOINTS = {

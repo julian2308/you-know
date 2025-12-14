@@ -7,7 +7,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
-import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, apiClient } from '../config/apiConfig';
+import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, ALL_MERCHANTS_ENDPOINT, apiClient } from '../config/apiConfig';
 import errorRecommendations from '../constants/errorRecommendations.json';
 
 
@@ -16,6 +16,7 @@ const Merchants = () => {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedAlerts, setExpandedAlerts] = useState({});
+  const [allMerchantsData, setAllMerchantsData] = useState(null);
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -120,6 +121,23 @@ const Merchants = () => {
 
     fetchData();
   }, [selectedDate, selectedMerchant]);
+
+  // Obtener datos de todos los merchants para los providers
+  useEffect(() => {
+    const fetchAllMerchants = async () => {
+      try {
+        const url = ALL_MERCHANTS_ENDPOINT();
+        console.log('Fetching all merchants from URL:', url);
+        const data = await apiClient.get(url);
+        console.log('Received all merchants data:', data);
+        setAllMerchantsData(data);
+      } catch (err) {
+        console.error('Error fetching all merchants:', err);
+      }
+    };
+
+    fetchAllMerchants();
+  }, []);
 
   // Filtrar los datos del overview para el merchant seleccionado
   const getMerchantData = () => {
@@ -257,35 +275,58 @@ const Merchants = () => {
   const getProviderStatus = () => {
     const status = {};
 
-    // Si tu endpoint /merchants/{id} devuelve providers breakdown:
-    (merchantDetail?.providers || []).forEach(p => {
-      status[p.provider] = {
-        total: p.totalEvents || 0,
-        failed: p.failedEvents || 0,
-        latencyMs: p.avgLatencyMs || 0,
-        errors: [] // opcional: lo puedes cruzar con issues para listar incidentTags
-      };
-    });
-
-    // Fallback si no viene providers:
-    if (Object.keys(status).length === 0) {
-      merchantIssues.forEach(issue => {
-        if (!status[issue.provider]) {
-          status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
-        }
-        status[issue.provider].total += issue.totalEvents || 0;
+    // Obtener todos los providers del merchant seleccionado desde allMerchantsData
+    if (selectedMerchant && allMerchantsData) {
+      // El endpoint puede devolver un array directo o un objeto con propiedad merchants
+      const merchantsList = Array.isArray(allMerchantsData) ? allMerchantsData : (allMerchantsData.merchants || []);
+      
+      // Obtener el nombre del merchant del overview para hacer matching
+      const selectedMerchantName = (overview?.activeIssues || []).find(i => i.merchantId === selectedMerchant)?.merchantName;
+      
+      console.log('Selected merchant ID:', selectedMerchant);
+      console.log('Selected merchant name:', selectedMerchantName);
+      
+      // Buscar el merchant por nombre (porque los IDs en overview y en /api/merchants son diferentes)
+      const merchantData = merchantsList.find(m => m.merchantName === selectedMerchantName);
+      
+      console.log('Merchant data found:', merchantData);
+      console.log('Available merchants:', merchantsList.map(m => ({ id: m.merchantId, name: m.merchantName })));
+      
+      if (merchantData && merchantData.providers) {
+        console.log('Initializing providers:', merchantData.providers);
         
-        // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
-        const isCancelled = issue.mainErrorCategory === 'USER';
-        if (!isCancelled) {
-          status[issue.provider].failed += issue.failedEvents || 0;
-        }
-        
-        // Solo agregar error si no es cancelado por usuario
-        if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
-      });
+        // Inicializar todos los providers con valores por defecto
+        merchantData.providers.forEach(provider => {
+          // Usar provider.provider para obtener el nombre (ej: "MERCADOPAGO", "PAYU", "DAVIPLATA")
+          const providerName = provider.provider;
+          status[providerName] = {
+            total: 0,
+            failed: 0,
+            latencyMs: 0,
+            errors: []
+          };
+        });
+      }
     }
 
+    // Agregar/actualizar conteos de transacciones del merchant detail
+    merchantIssues.forEach(issue => {
+      if (!status[issue.provider]) {
+        status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
+      }
+      status[issue.provider].total += issue.totalEvents || 0;
+      
+      // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
+      const isCancelled = issue.mainErrorCategory === 'USER';
+      if (!isCancelled) {
+        status[issue.provider].failed += issue.failedEvents || 0;
+      }
+      
+      // Solo agregar error si no es cancelado por usuario
+      if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
+    });
+
+    console.log('Final provider status:', status);
     return status;
   };
 
@@ -416,7 +457,7 @@ const Merchants = () => {
 
           <Box sx={{ textAlign: { md: 'right' } }}>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-              Date (Optional)
+              Date
             </Typography>
             <TextField
               type="date"
@@ -554,7 +595,7 @@ const Merchants = () => {
               {/* Providers Summary */}
               <Box sx={{ mt: 3, p: 3, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '2px solid rgba(15, 122, 255, 0.4)', boxShadow: '0 4px 12px rgba(15, 122, 255, 0.15)' }}>
                 <Typography variant="h6" sx={{ color: '#0F7AFF', fontWeight: 700, display: 'block', mb: 2 }}>
-                  📊 Provider Summary
+                  Provider Summary
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
