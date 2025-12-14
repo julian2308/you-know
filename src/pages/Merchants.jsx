@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField, List, ListItem, ListItemIcon, ListItemText, Collapse, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -7,17 +7,43 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
-import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, ALL_MERCHANTS_ENDPOINT, apiClient } from '../config/apiConfig';
+import { useOverview } from '../hooks/useOverview';
+import { useMerchantsData } from '../hooks/useMerchantsData';
 import errorRecommendations from '../constants/errorRecommendations.json';
 
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
-  const [overview, setOverview] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [expandedAlerts, setExpandedAlerts] = useState({});
-  const [allMerchantsData, setAllMerchantsData] = useState(null);
-  const [merchantsLoading, setMerchantsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState('');
+
+  // Calcular fechas automáticamente en UTC
+  const getDateRange = (dateString) => {
+    if (!dateString) {
+      // Si no hay fecha, usar rango muy amplio para ver todos los datos
+      const fromDate = '1970-01-01T00:00:00';
+      const toDate = '2099-12-31T23:59:59';
+      return { fromDate, toDate };
+    }
+    
+    // Parsear la fecha como UTC (agregando 'Z' al final)
+    const date = new Date(`${dateString}T00:00:00Z`);
+    const nextDay = new Date(date);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    
+    const fromDate = `${dateString}T00:00:00`;
+    const toDate = `${nextDay.toISOString().split('T')[0]}T00:00:00`;
+    
+    return { fromDate, toDate };
+  };
+
+  const { fromDate, toDate } = getDateRange(selectedDate);
+
+  // Usar React Query para overview
+  const { data: overview, isLoading: loading } = useOverview(fromDate, toDate);
+  
+  // Usar React Query para merchants
+  const { data: allMerchantsData, isLoading: merchantsLoading } = useMerchantsData();
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -150,72 +176,6 @@ const Merchants = () => {
       [alertId]: !prev[alertId]
     }));
   };
-  
-  // Obtener fecha actual UTC en formato YYYY-MM-DD
-  const getTodayUTC = () => {
-    const now = new Date();
-    return now.toISOString().split('T')[0];
-  };
-  
-  // Fecha opcional (vacía por defecto)
-  const [selectedDate, setSelectedDate] = useState('');
-
-  // Calcular fechas automáticamente en UTC
-  const getDateRange = (dateString) => {
-    if (!dateString) {
-      // Si no hay fecha, usar rango muy amplio para ver todos los datos
-      const fromDate = '1970-01-01T00:00:00';
-      const toDate = '2099-12-31T23:59:59';
-      return { fromDate, toDate };
-    }
-    
-    // Parsear la fecha como UTC (agregando 'Z' al final)
-    const date = new Date(`${dateString}T00:00:00Z`);
-    const nextDay = new Date(date);
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    
-    const fromDate = `${dateString}T00:00:00`;
-    const toDate = `${nextDay.toISOString().split('T')[0]}T00:00:00`;
-    
-    return { fromDate, toDate };
-  };
-
-  const { fromDate, toDate } = getDateRange(selectedDate);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
-        const data = await apiClient.get(url);
-        setOverview(data);
-      } catch (err) {
-        // Error handled silently
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [selectedDate, selectedMerchant]);
-
-  // Obtener datos de todos los merchants para los providers
-  useEffect(() => {
-    const fetchAllMerchants = async () => {
-      try {
-        setMerchantsLoading(true);
-        const url = ALL_MERCHANTS_ENDPOINT();
-        const data = await apiClient.get(url);
-        setAllMerchantsData(data);
-      } catch (err) {
-        // Error handled silently
-      } finally {
-        setMerchantsLoading(false);
-      }
-    };
-
-    fetchAllMerchants();
-  }, []);
 
   // Filtrar los datos del overview para el merchant seleccionado
   const getMerchantData = () => {

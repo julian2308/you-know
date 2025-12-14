@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -27,17 +27,15 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
-import { OVERVIEW_ENDPOINT, CRITICAL_ALERTS_ENDPOINT, apiClient } from '../config/apiConfig';
+import { useAlerts } from '../hooks/useAlertsWarnings';
+import { useCriticalAlerts } from '../hooks/useCriticalAlerts';
 import errorRecommendations from '../constants/errorRecommendations.json';
 
 const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
-  const [allAlerts, setAllAlerts] = useState([]);
-  const [criticalAlerts, setCriticalAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState('2020-01-01T00:00');
-  const [toDate, setToDate] = useState('2099-12-31T23:59');
   const [expandedAlerts, setExpandedAlerts] = useState({});
+  const fromDate = '2020-01-01T00:00';
+  const toDate = '2099-12-31T23:59';
   
   // Filtros de búsqueda
   const [searchFilters, setSearchFilters] = useState({
@@ -46,6 +44,14 @@ const Alerts = () => {
     merchant: '',
     country: ''
   });
+
+  // Usar React Query para alertas warnings
+  const { data: allAlerts = [], isLoading: alertsLoading } = useAlerts(fromDate, toDate);
+  
+  // Usar React Query para alertas críticas
+  const { data: criticalAlerts = [], isLoading: criticalLoading } = useCriticalAlerts(fromDate, toDate);
+  
+  const loading = alertsLoading || criticalLoading;
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -179,88 +185,7 @@ const Alerts = () => {
     }));
   };
 
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      try {
-        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
-        const data = await apiClient.get(url);
 
-        // Map activeIssues to alerts format - only include issues with failures (excluding user-cancelled)
-        // Current alerts are all warnings. Critical alerts will come from a separate table.
-        const allProcessedAlerts = (data?.activeIssues || [])
-          .filter(issue => {
-            const isCancelled = issue.mainErrorCategory === 'USER';
-            const hasFailures = (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0;
-            return hasFailures && !isCancelled;
-          })
-          .map(issue => ({
-            id: `${issue.merchantId}-${issue.incidentTag}`,
-            provider: issue.provider,
-            isCritical: false, // All current alerts are warnings. Critical alerts will come from separate table.
-            severity: 'warning',
-            errorCode: issue.incidentTag,
-            errorMessage: issue.title,
-            description: issue.description,
-            failureCount: issue.failedEvents || 0,
-            failureRate: (issue.errorRate || 0).toFixed(1),
-            merchantName: issue.merchantName,
-            countryCode: issue.countryCode,
-            paymentMethod: issue.paymentMethod,
-            suggestedAction: issue.suggestedActionType,
-            firstSeen: issue.firstSeen,
-            lastSeen: issue.lastSeen,
-            mainErrorCategory: issue.mainErrorCategory,
-            totalEvents: issue.totalEvents,
-            mainErrorType: issue.mainErrorType
-          }));
-
-        // Obtener alertas críticas desde /api/alertas
-        let criticalProcessedAlerts = [];
-        try {
-          const criticalUrl = CRITICAL_ALERTS_ENDPOINT(fromDate, toDate);
-          const criticalData = await apiClient.get(criticalUrl);
-          
-          // El API devuelve un array directo, no un objeto con propiedad alertas
-          criticalProcessedAlerts = (Array.isArray(criticalData) ? criticalData : [])
-            .map(alert => ({
-              id: `${alert.merchantName}-${alert.incidentTag}`,
-              provider: alert.provider,
-              isCritical: true,
-              severity: 'critical',
-              errorCode: alert.incidentTag,
-              errorMessage: alert.incidentTag,
-              description: `Critical alert for ${alert.provider} in ${alert.countryCode}`,
-              failureCount: 0,
-              failureRate: '0',
-              merchantName: alert.merchantName,
-              countryCode: alert.countryCode,
-              paymentMethod: '',
-              suggestedAction: '',
-              firstSeen: alert.lastSeen,
-              lastSeen: alert.lastSeen,
-              mainErrorCategory: alert.category || 'CRITICAL',
-              totalEvents: 0,
-              mainErrorType: ''
-            }));
-        } catch (err) {
-          // Si el endpoint de alertas críticas falla, continuar sin ellas
-          console.log('No critical alerts endpoint available or error fetching critical alerts');
-        }
-
-        // Separar alertas críticas de regulares
-        const regulars = allProcessedAlerts;
-        const criticals = criticalProcessedAlerts;
-
-        setCriticalAlerts(criticals);
-        setAllAlerts(regulars);
-        setLoading(false);
-      } catch (err) {
-        setLoading(false);
-      }
-    };
-
-    fetchAlerts();
-  }, [fromDate, toDate]);
 
   // Aplicar filtros de búsqueda
   const baseAlerts = filterTab === 0 ? allAlerts : criticalAlerts;
