@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button, Select, MenuItem, FormControl } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -9,72 +9,53 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SwapCallsIcon from '@mui/icons-material/SwapCalls';
 import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
-import { mockData } from '../data/mockData';
+import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedCountry, setSelectedCountry] = useState('ALL');
-  
-  // Obtener lista de países únicos
-  const allCountries = Array.from(new Set(mockData.payinEvents.map(p => p.country))).sort();
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fechas de ejemplo, puedes parametrizar
+  const from = '2025-12-13T08:00:00';
+  const to = '2025-12-13T12:00:00';
+
+  const fetchOverview = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = OVERVIEW_ENDPOINT(from, to);
+      const data = await apiClient.get(url);
+      setOverview(data);
+    } catch (err) {
+      setError('Error al cargar datos del backend');
+    } finally {
+      setLoading(false);
+    }
+  }, [from, to]);
+
+  useEffect(() => {
+    fetchOverview();
+  }, [fetchOverview]);
+
+  // Obtener lista de países únicos desde los eventos
+  const allCountries = Array.from(new Set((overview?.events || []).map(p => p.country))).sort();
   // Filtrar payins por país
-  const payins = selectedCountry === 'ALL' 
-    ? mockData.payinEvents 
-    : mockData.payinEvents.filter(p => p.country === selectedCountry);
+  const payins = selectedCountry === 'ALL'
+    ? (overview?.events || [])
+    : (overview?.events || []).filter(p => p.country === selectedCountry);
   const succeeded = payins.filter(p => p.status === 'SUCCEEDED').length;
   const failed = payins.filter(p => p.status === 'FAILED').length;
   const totalPayins = payins.length;
-  const successRate = ((succeeded / totalPayins) * 100).toFixed(1);
-  const totalVolume = payins.reduce((sum, p) => sum + p.amount, 0);
-  const avgLatency = (payins.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / totalPayins).toFixed(2);
+  const successRate = totalPayins > 0 ? ((succeeded / totalPayins) * 100).toFixed(1) : '0.0';
+  const totalVolume = payins.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const avgLatency = totalPayins > 0 ? (payins.reduce((sum, p) => sum + (p.processing_time_sec || (p.latency_ms ? p.latency_ms / 1000 : 0)), 0) / totalPayins).toFixed(2) : '0.00';
 
-  // Calcular Security Score basado en múltiples factores
-  const calculateSecurityScore = () => {
-    let score = 100;
-    
-    // 1. Factor: Tasa de éxito (60 puntos máx)
-    const successFactor = (parseFloat(successRate) / 100) * 60;
-    score -= (60 - successFactor);
-    
-    // 2. Factor: Latencia (20 puntos máx - penalizar timeouts)
-    const timeouts = payins.filter(p => p.error_code === 'PROVIDER_TIMEOUT').length;
-    const latencyPenalty = (timeouts / totalPayins) * 20;
-    score -= latencyPenalty;
-    
-    // 3. Factor: Diversificación de proveedores por país (20 puntos máx)
-    const providersByCountry = {};
-    payins.forEach(p => {
-      if (!providersByCountry[p.country]) {
-        providersByCountry[p.country] = new Set();
-      }
-      providersByCountry[p.country].add(p.provider);
-    });
-    
-    const countries = Object.keys(providersByCountry);
-    const countriesWithMultipleProviders = countries.filter(country => providersByCountry[country].size >= 2).length;
-    
-    // Solo otorga puntos si TODOS los países tienen al menos 2 proveedores
-    const diversificationFactor = (countriesWithMultipleProviders === countries.length) ? 20 : 
-      (countriesWithMultipleProviders / countries.length) * 20;
-    
-    score += diversificationFactor;
-    
-    const finalScore = Math.max(score, 0);
-    
-    return {
-      score: finalScore,
-      factors: {
-        success: successFactor.toFixed(1),
-        latency: (20 - latencyPenalty).toFixed(1),
-        diversification: diversificationFactor.toFixed(1)
-      }
-    };
-  };
-
-  const securityScoreData = calculateSecurityScore();
-  const securityScore = securityScoreData.score;
-  const securityFactors = securityScoreData.factors;
+  // Security Score y factores (puedes adaptar según tu lógica)
+  const securityScore = overview?.securityScore || 100;
+  const securityFactors = overview?.securityFactors || { success: 0, latency: 0, diversification: 0 };
   const getSecurityGrade = (score) => {
     if (score >= 95) return 'A+';
     if (score >= 90) return 'A';
@@ -84,183 +65,41 @@ const Dashboard = () => {
     return 'F';
   };
 
-  // Generar alertas inteligentes por proveedor
-  const generateAlerts = () => {
-    const alerts = [];
-    const providerErrors = {};
+  // Alertas desde el backend (incidents)
+  const alerts = overview?.activeIssues || [];
 
-    // Agrupar errores por proveedor
-    payins.forEach(payin => {
-      if (payin.status === 'FAILED') {
-        if (!providerErrors[payin.provider]) {
-          providerErrors[payin.provider] = [];
-        }
-        providerErrors[payin.provider].push(payin);
-      }
-    });
-
-    // Crear alertas basadas en errores
-    Object.entries(providerErrors).forEach(([provider, failedPayins]) => {
-      const failureRate = (failedPayins.length / payins.filter(p => p.provider === provider).length) * 100;
-      const totalImpact = failedPayins.reduce((sum, p) => sum + p.amount, 0);
-
-      // Determinar severidad basada en el score de seguridad y tasa de fallo
-      let severity = 'info';
-      if (securityScore < 60 || failureRate > 50) severity = 'critical';
-      else if (failureRate > 25 || securityScore < 80) severity = 'warning';
-
-      // Acciones recomendadas por tipo de error
-      const actionsByError = {
-        'PROVIDER_TIMEOUT': [
-          'Aumentar timeout de 30s a 60s en configuración',
-          'Verificar conectividad con proveedor',
-          'Usar ruta alternativa temporalmente',
-          'Contactar soporte del proveedor'
-        ],
-        'INSUFFICIENT_FUNDS': [
-          'Recargar balance de cuenta del proveedor',
-          'Configurar fallback a proveedor alternativo',
-          'Revisar límites de payin establecidos'
-        ],
-        'INVALID_ACCOUNT': [
-          'Verificar datos de cuenta del destinatario',
-          'Contactar comerciante para validar datos',
-          'Revisar formato de cuenta requerido'
-        ]
-      };
-
-      const errorType = failedPayins[0].error_code;
-      const actions = actionsByError[errorType] || [
-        'Revisar logs de error detallados',
-        'Contactar soporte técnico'
-      ];
-
-      alerts.push({
-        id: `${provider}-${Date.now()}`,
-        provider,
-        severity,
-        errorCode: errorType,
-        errorMessage: failedPayins[0].error_message,
-        failureCount: failedPayins.length,
-        failureRate: failureRate.toFixed(1),
-        totalImpact,
-        actions,
-        affectedPayins: failedPayins
-      });
-    });
-
-    return alerts.sort((a, b) => {
-      const severityOrder = { critical: 0, warning: 1, info: 2 };
-      return severityOrder[a.severity] - severityOrder[b.severity];
-    });
-  };
-
-  const alerts = generateAlerts();
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'critical':
-        return { bg: 'rgba(255, 59, 48, 0.1)', border: '#FF3B30', icon: '#FF3B30', text: 'CRÍTICO' };
-      case 'warning':
-        return { bg: 'rgba(255, 149, 0, 0.1)', border: '#FF9500', icon: '#FF9500', text: 'ADVERTENCIA' };
-      case 'info':
-        return { bg: 'rgba(15, 122, 255, 0.1)', border: '#0F7AFF', icon: '#0F7AFF', text: 'INFO' };
-      default:
-        return { bg: 'rgba(160, 174, 192, 0.1)', border: '#A0AEC0', icon: '#A0AEC0', text: 'INFO' };
-    }
-  };
+  if (loading) {
+    return <Box sx={{ p: 6, textAlign: 'center' }}><Typography>Cargando datos...</Typography></Box>;
+  }
+  if (error) {
+    return <Box sx={{ p: 6, textAlign: 'center', color: 'red' }}><Typography>{error}</Typography></Box>;
+  }
 
   const kpis = {
     totalPayins,
-    successRate: parseFloat(successRate),
-    failedPayins: failed,
-    totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
+    successRate,
+    totalVolume: `$${totalVolume.toFixed(2)}`,
     avgLatency: `${avgLatency}s`,
-    providers: Array.from(new Set(payins.map(p => p.provider))).length,
-    securityScore: securityScore.toFixed(1),
+    securityScore,
     securityGrade: getSecurityGrade(securityScore),
-    alertCount: alerts.filter(a => a.severity === 'critical').length
   };
 
-  const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
-    <Paper sx={{ 
-      p: 3, 
-      display: 'flex', 
-      flexDirection: 'column',
-      alignItems: 'center',
-      background: bgColor,
-      border: `1px solid ${color}33`,
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: `0 12px 24px ${color}20`,
-      }
-    }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
-        <Box sx={{ 
-          p: 1, 
-          borderRadius: '8px', 
-          background: color,
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mr: 1
-        }}>
-          <IconComponent sx={{ fontSize: 22 }} />
-        </Box>
-        <Typography variant="body2" sx={{ fontWeight: 600, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {title}
-        </Typography>
-      </Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
-        {value}
-      </Typography>
-      {subtitle && (
-        <Typography variant="caption" sx={{ color: '#A0AEC0', textAlign: 'center', display: 'block' }}>
-          {subtitle}
-        </Typography>
-      )}
-    </Paper>
-  );
-
   return (
-    <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box sx={{ textAlign: 'left' }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-              Panel de Control de Payins
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#A0AEC0' }}>
-              Sistema de Procesamiento y Enrutamiento de Transferencias • Monitoreo en tiempo real de pagos a comerciantes
-            </Typography>
-          </Box>
-          <FormControl sx={{ minWidth: 200 }}>
-            <Select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              sx={{
-                backgroundColor: '#151B2E',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 1,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255,255,255,0.08)'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#0F7AFF'
-                }
-              }}
-            >
-              <MenuItem value="ALL">Todos los países</MenuItem>
-              {allCountries.map(country => (
-                <MenuItem key={country} value={country}>{country}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+    <Box sx={{ p: 4, backgroundColor: '#0D1B2A', color: '#E2E8F0', minHeight: '100vh' }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>Dashboard</Typography>
+        <FormControl sx={{ minWidth: 150 }}>
+          <Select
+            value={selectedCountry}
+            onChange={(e) => setSelectedCountry(e.target.value)}
+            sx={{ color: '#E2E8F0', backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
+          >
+            <MenuItem value="ALL">Todos los países</MenuItem>
+            {allCountries.map((country) => (
+              <MenuItem key={country} value={country}>{country}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       {/* Card de Alertas Rápido (eliminada, ahora solo en Topbar) */}
