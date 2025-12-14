@@ -1,6 +1,6 @@
 # You Know - Dashboard Inteligente de Pagos
 
-## 🎯 Concepto
+## Concepto
 
 **You Know** es un dashboard profesional diseñado para empresas de procesamiento de pagos (como Yuno) que implementan **sistemas de auto-enrutamiento inteligente**. Transforma datos técnicos complejos en términos simples y comprensibles para usuarios de negocio.
 
@@ -10,12 +10,11 @@ Simplificar la complejidad del procesamiento de pagos internacionales y el auto-
 - **Cómo** optimiza automáticamente la tasa de éxito
 - **Qué** hacer cuando algo no funciona
 
-## 🚀 Características Principales
+## Características Principales
 
 ### 1. **Sistema de Auto-Enrutamiento Inteligente**
 - **Ruta Primaria (92%)**: Visa/Mastercard - Proveedores principales de alto volumen
-- **Ruta Secundaria (6%)**: Proveedores alternativos para casos especiales o fallos
-- **Ruta Terciaria (2%)**: Backup de emergencia para máxima confiabilidad
+- **Ruta Secundaria (8%)**: Proveedores alternativos para casos especiales o fallos (APM)
 
 El sistema automáticamente selecciona la mejor ruta en tiempo real basado en:
 - Tasa de éxito histórica del proveedor
@@ -46,8 +45,10 @@ Barra de progreso que muestra intuitivamente cómo se distribuyen las transaccio
 
 ## � Páginas
 
-1. **Dashboard** - Vista general con KPIs y estado del sistema
+1. **Dashboard general** - Vista general con KPIs y estado del sistema
 2. **Centro de Alertas** - Monitoreo centralizado de problemas por proveedor
+3. **Providers** - Monitoreo centralizado de transacciones filtrado por proveedor y país.
+4. **Merchants** - Monitoreo centralizado de transacciones del Merchant filtrado por rango de fechas, problemáticas en tiempo real y posibles soluciones accionables.
 
 ## �📊 Tech Stack
 
@@ -57,9 +58,3 @@ Barra de progreso que muestra intuitivamente cómo se distribuyen las transaccio
 - **Routing**: React Router 7.10
 - **Icons**: Material-UI Icons
 - **Theme**: Sistema de temas personalizado
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
