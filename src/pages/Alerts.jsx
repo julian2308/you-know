@@ -121,7 +121,6 @@ const Alerts = () => {
         setAllAlerts(regulars);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching alerts:', err);
         setLoading(false);
       }
     };

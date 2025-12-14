@@ -61,7 +61,6 @@ const Providers = () => {
         setOverview(data);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching data:', err);
         setLoading(false);
       }
     };

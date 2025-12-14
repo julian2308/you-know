@@ -20,7 +20,6 @@ const usePayins = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching payins:', err);
       return [];
     } finally {
       setLoading(false);
@@ -37,7 +36,6 @@ const usePayins = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching payins for ${country}:`, err);
       return [];
     } finally {
       setLoading(false);
@@ -54,7 +52,6 @@ const usePayins = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching payins for provider ${providerId}:`, err);
       return [];
     } finally {
       setLoading(false);
@@ -71,7 +68,6 @@ const usePayins = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching payins for ${provider} in ${country}:`, err);
       return [];
     } finally {
       setLoading(false);
@@ -87,7 +83,6 @@ const usePayins = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching payins metrics:', err);
       return null;
     } finally {
       setLoading(false);

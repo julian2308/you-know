@@ -67,7 +67,6 @@ const Dashboard = () => {
       const data = typeof response === 'string' ? JSON.parse(response) : response;
       setOverview(data);
     } catch (err) {
-      console.error('Error loading data:', err);
       setError('Error loading backend data');
     } finally {
       setLoading(false);
@@ -78,16 +77,7 @@ const Dashboard = () => {
     fetchOverview();
   }, [fetchOverview]);
 
-  // Log the overview data to verify structure
-  useEffect(() => {
-    if (overview) {
-      console.log('Overview data received:', overview);
-      console.log('Total Events:', overview.totalEvents);
-      console.log('Total Success:', overview.totalSuccess);
-      console.log('Total Failed:', overview.totalFailed);
-      console.log('Active Issues:', overview.activeIssues);
-    }
-  }, [overview]);
+
 
   // Create mock events from activeIssues data
   const mockEvents = (overview?.activeIssues || []).flatMap(issue => {
@@ -239,20 +229,7 @@ const Dashboard = () => {
     alertCount: alerts.filter(a => a.severity === 'critical').length
   };
 
-  // DEBUG: Log metrics calculation
-  useEffect(() => {
-    if (overview) {
-      console.log('=== DASHBOARD METRICS DEBUG ===');
-      console.log('Selected Country:', selectedCountry);
-      console.log('Total Issues:', overview.activeIssues?.length || 0);
-      console.log('Filtered Issues:', filteredIssues.length);
-      console.log('countryTotalPayins:', countryTotalPayins);
-      console.log('countryFailed:', countryFailed);
-      console.log('countrySucceeded:', countrySucceeded);
-      console.log('Merchants in filtered issues:', Array.from(new Set(filteredIssues.map(i => i.merchantName))));
-      console.log('Payins count:', payins.length);
-    }
-  }, [overview, selectedCountry, filteredIssues, countryTotalPayins, countryFailed, countrySucceeded, payins]);
+
 
   const securityFactors = {
     success: (countrySucceeded / countryTotalPayins * 60).toFixed(1) || '0', 

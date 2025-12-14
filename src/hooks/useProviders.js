@@ -20,7 +20,6 @@ const useProviders = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching providers:', err);
       return [];
     } finally {
       setLoading(false);
@@ -37,7 +36,6 @@ const useProviders = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching providers for ${country}:`, err);
       return [];
     } finally {
       setLoading(false);
@@ -53,7 +51,6 @@ const useProviders = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching provider ${id}:`, err);
       return null;
     } finally {
       setLoading(false);
@@ -69,7 +66,6 @@ const useProviders = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching metrics for provider ${providerId}:`, err);
       return null;
     } finally {
       setLoading(false);
@@ -85,7 +81,6 @@ const useProviders = () => {
       return data;
     } catch (err) {
       setError(err.message);
-      console.error(`Error fetching provider ${name} in ${country}:`, err);
       return null;
     } finally {
       setLoading(false);

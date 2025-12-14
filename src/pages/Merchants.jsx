@@ -98,16 +98,10 @@ const Merchants = () => {
       try {
         setLoading(true);
         const url = OVERVIEW_ENDPOINT(fromDate, toDate);
-        console.log('Fetching from URL:', url);
         const data = await apiClient.get(url);
-        console.log('Received data:', data);
         setOverview(data);
-        
-        // No limpiar la selección del merchant cuando cambia la fecha
-        // El merchant se mantiene seleccionado incluso si no tiene datos en el nuevo rango
-        console.log('Date range changed, keeping current merchant selection:', selectedMerchant);
       } catch (err) {
-        console.error('Error fetching data:', err);
+        // Error handled silently
       } finally {
         setLoading(false);
       }
@@ -122,12 +116,10 @@ const Merchants = () => {
       try {
         setMerchantsLoading(true);
         const url = ALL_MERCHANTS_ENDPOINT();
-        console.log('Fetching all merchants from URL:', url);
         const data = await apiClient.get(url);
-        console.log('Received all merchants data:', data);
         setAllMerchantsData(data);
       } catch (err) {
-        console.error('Error fetching all merchants:', err);
+        // Error handled silently
       } finally {
         setMerchantsLoading(false);
       }
@@ -228,11 +220,7 @@ const Merchants = () => {
   // Obtener issues del merchant seleccionado
   // Intentar con 'activeIssues' primero, luego 'issues' como fallback
   const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
-  // DEBUG: Mostrar issues encontrados para el merchant seleccionado
-  if (selectedMerchant && merchantIssues.length > 0) {
-    console.log('DEBUG merchantIssues for', selectedMerchant, merchantIssues);
-  }
-
+  
   // Filtrar solo issues con fallos reales (excluyendo canceladas por usuario)
   const merchantIssuesWithFailures = merchantIssues.filter(issue => {
     const isCancelled = issue.mainErrorCategory === 'USER';
@@ -304,21 +292,10 @@ const Merchants = () => {
       // Obtener el nombre del merchant del overview para hacer matching
       const selectedMerchantName = (overview?.activeIssues || []).find(i => i.merchantId === selectedMerchant)?.merchantName;
       
-      console.log('Selected merchant ID:', selectedMerchant);
-      console.log('Selected merchant name:', selectedMerchantName);
-      
-      // Buscar el merchant por nombre (porque los IDs en overview y en /api/merchants son diferentes)
       const merchantData = merchantsList.find(m => m.merchantName === selectedMerchantName);
       
-      console.log('Merchant data found:', merchantData);
-      console.log('Available merchants:', merchantsList.map(m => ({ id: m.merchantId, name: m.merchantName })));
-      
       if (merchantData && merchantData.providers) {
-        console.log('Initializing providers:', merchantData.providers);
-        
-        // Inicializar todos los providers con valores por defecto
         merchantData.providers.forEach(provider => {
-          // Usar provider.provider para obtener el nombre (ej: "MERCADOPAGO", "PAYU", "DAVIPLATA")
           const providerName = provider.provider;
           status[providerName] = {
             total: 0,
@@ -348,7 +325,6 @@ const Merchants = () => {
       if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
     });
 
-    console.log('Final provider status:', status);
     return status;
   };
 

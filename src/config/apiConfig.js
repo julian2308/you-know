@@ -48,7 +48,6 @@ const SECURITY_ENDPOINTS = {
 export const apiClient = {
   async get(url, options = {}) {
     try {
-      console.log('Fetching from:', url);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -63,15 +62,8 @@ export const apiClient = {
         ...options,
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', {
-        contentType: response.headers.get('content-type'),
-        contentLength: response.headers.get('content-length')
-      });
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('HTTP Error:', response.status, errorText.substring(0, 200));
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -79,23 +71,18 @@ export const apiClient = {
       
       if (!contentType.includes('application/json')) {
         const text = await response.text();
-        console.error('Invalid content type:', contentType);
-        console.error('Response preview:', text.substring(0, 200));
-        throw new Error(`Expected JSON but got ${contentType}`);
+        throw new Error(`Expected JSON content type`);
       }
 
       const data = await response.json();
-      console.log('Successfully parsed JSON:', data);
       return data;
     } catch (error) {
-      console.error('API GET Error:', error);
       throw error;
     }
   },
 
   async post(url, data, options = {}) {
     try {
-      console.log('POST to:', url, 'with payload:', data);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -113,7 +100,6 @@ export const apiClient = {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('HTTP Error:', response.status, errorText.substring(0, 200));
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -121,15 +107,12 @@ export const apiClient = {
       
       if (!contentType.includes('application/json')) {
         const text = await response.text();
-        console.error('Invalid content type:', contentType);
         throw new Error(`Expected JSON but got ${contentType}`);
       }
 
       const data = await response.json();
-      console.log('Successfully parsed JSON:', data);
       return data;
     } catch (error) {
-      console.error('API POST Error:', error);
       throw error;
     }
   },
@@ -152,7 +135,6 @@ export const apiClient = {
 
       return await response.json();
     } catch (error) {
-      console.error('API PUT Error:', error);
       throw error;
     }
   },
@@ -174,7 +156,6 @@ export const apiClient = {
 
       return await response.json();
     } catch (error) {
-      console.error('API DELETE Error:', error);
       throw error;
     }
   },
