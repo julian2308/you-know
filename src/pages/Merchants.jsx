@@ -103,6 +103,22 @@ const Merchants = () => {
 
   const providerStatus = getProviderStatus();
 
+  // Obtener proveedor más utilizado
+  const getMostUsedProvider = () => {
+    if (Object.keys(providerStatus).length === 0) return null;
+    return Object.entries(providerStatus).reduce((prev, current) => 
+      (prev[1].total > current[1].total) ? prev : current
+    )[0];
+  };
+
+  const mostUsedProvider = getMostUsedProvider();
+  const availableProviders = Object.keys(providerStatus).sort();
+
+  // Ordenar providers por número de transacciones (de mayor a menor)
+  const sortedProviders = Object.entries(providerStatus)
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([provider]) => provider);
+
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
     <Paper sx={{
       p: 3,
@@ -263,6 +279,7 @@ const Merchants = () => {
                 {Object.entries(providerStatus).map(([provider, pStatus]) => {
                   const failRate = pStatus.total > 0 ? ((pStatus.failed / pStatus.total) * 100).toFixed(1) : '0';
                   const isHealthy = pStatus.failed === 0;
+                  const isMostUsed = provider === mostUsedProvider;
 
                   return (
                     <Box key={provider}>
@@ -270,7 +287,8 @@ const Merchants = () => {
                           p: 2,
                           background: isHealthy ? 'rgba(0, 208, 132, 0.05)' : 'rgba(255, 59, 48, 0.05)',
                           border: `1px solid ${isHealthy ? 'rgba(0, 208, 132, 0.2)' : 'rgba(255, 59, 48, 0.2)'}`,
-                          borderRadius: 1
+                          borderRadius: 1,
+                          position: 'relative'
                         }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, color: '#fff' }}>
@@ -301,6 +319,71 @@ const Merchants = () => {
                     </Box>
                   );
                 })}
+              </Box>
+
+              {/* Providers Summary */}
+              <Box sx={{ mt: 3, p: 3, backgroundColor: 'rgba(15, 122, 255, 0.1)', borderRadius: 2, border: '2px solid rgba(15, 122, 255, 0.4)', boxShadow: '0 4px 12px rgba(15, 122, 255, 0.15)' }}>
+                <Typography variant="h6" sx={{ color: '#0F7AFF', fontWeight: 700, display: 'block', mb: 2 }}>
+                  📊 Provider Summary
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {sortedProviders.length > 0 ? (
+                    sortedProviders.map((provider, index) => (
+                      <Box
+                        key={provider}
+                        sx={{
+                          p: 2,
+                          backgroundColor: index === 0 ? 'rgba(255, 184, 28, 0.15)' : 'rgba(0, 208, 132, 0.1)',
+                          border: index === 0 ? '2px solid rgba(255, 184, 28, 0.4)' : '1px solid rgba(0, 208, 132, 0.3)',
+                          borderRadius: 1.5,
+                          minWidth: '160px',
+                          textAlign: 'center',
+                          position: 'relative',
+                          flex: '0 1 auto'
+                        }}
+                      >
+                        {index === 0 && (
+                          <Box sx={{
+                            position: 'absolute',
+                            top: -10,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            backgroundColor: '#FFB81C',
+                            color: '#000',
+                            px: 1.5,
+                            py: 0.3,
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
+                          }}>
+                            ⭐ Most Used
+                          </Box>
+                        )}
+                        <Typography variant="body2" sx={{ color: index === 0 ? '#FFB81C' : '#00D084', fontWeight: 700, mb: 1.5, mt: index === 0 ? 1.5 : 0 }}>
+                          {provider}
+                        </Typography>
+                        <Chip
+                          label={`Transactions: ${providerStatus[provider].total}`}
+                          size="small"
+                          sx={{
+                            backgroundColor: index === 0 ? '#FFB81C' : '#00D084',
+                            color: index === 0 ? '#000' : '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            width: '100%',
+                            justifyContent: 'center'
+                          }}
+                        />
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="caption" sx={{ color: '#A0AEC0', fontStyle: 'italic' }}>
+                      No providers available
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             </Paper>
           </Grid>
