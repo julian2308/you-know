@@ -1,9 +1,9 @@
 export const mockData = {
-  payoutEvents: [
+  payinEvents: [
     {
       timestamp: '2025-10-12T15:18:22Z',
       event: 'PAYOUT_STATUS_UPDATE',
-      payout_id: 'po_aa912c',
+      payin_id: 'po_aa912c',
       merchant_id: 'shopito',
       provider: 'DLOCAL',
       country: 'CO',
@@ -15,7 +15,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T16:25:33Z',
       event: 'PAYOUT_VALIDATED',
-      payout_id: 'po_44be21',
+      payin_id: 'po_44be21',
       merchant_id: 'storex',
       provider: 'ADYEN',
       country: 'CO',
@@ -27,7 +27,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T14:41:09Z',
       event: 'PAYOUT_FAILED',
-      payout_id: 'po_31aa99',
+      payin_id: 'po_31aa99',
       merchant_id: 'shopito',
       provider: 'DLOCAL',
       country: 'CO',
@@ -40,7 +40,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T15:09:55Z',
       event: 'PAYOUT_FAILED',
-      payout_id: 'po_77cc21',
+      payin_id: 'po_77cc21',
       merchant_id: 'storex',
       provider: 'STRIPE',
       country: 'MX',
@@ -53,7 +53,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T16:10:45Z',
       event: 'PAYOUT_STATUS_UPDATE',
-      payout_id: 'po_b3c892',
+      payin_id: 'po_b3c892',
       merchant_id: 'ecommerce_mx',
       provider: 'STRIPE',
       country: 'MX',
@@ -65,7 +65,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T16:05:12Z',
       event: 'PAYOUT_VALIDATED',
-      payout_id: 'po_f5d123',
+      payin_id: 'po_f5d123',
       merchant_id: 'fashion_store',
       provider: 'DLOCAL',
       country: 'BR',
@@ -77,7 +77,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T15:55:33Z',
       event: 'PAYOUT_FAILED',
-      payout_id: 'po_9e2f10',
+      payin_id: 'po_9e2f10',
       merchant_id: 'startup_co',
       provider: 'ADYEN',
       country: 'AR',
@@ -90,7 +90,7 @@ export const mockData = {
     {
       timestamp: '2025-10-12T16:15:22Z',
       event: 'PAYOUT_STATUS_UPDATE',
-      payout_id: 'po_c7a451',
+      payin_id: 'po_c7a451',
       merchant_id: 'marketplace',
       provider: 'ADYEN',
       country: 'CO',

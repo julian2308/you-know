@@ -49,7 +49,7 @@ export const ERROR_ACTIONS = {
   'INSUFFICIENT_FUNDS': [
     'Recargar balance de cuenta del proveedor',
     'Configurar fallback a proveedor alternativo',
-    'Revisar límites de payout establecidos'
+    'Revisar límites de payin establecidos'
   ],
   'INVALID_ACCOUNT': [
     'Verificar datos de cuenta del destinatario',

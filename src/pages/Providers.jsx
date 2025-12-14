@@ -12,31 +12,31 @@ const Providers = () => {
   const [selectedProvider, setSelectedProvider] = useState('');
 
   // Obtener lista de países únicos
-  const allCountries = Array.from(new Set(mockData.payoutEvents.map(p => p.country))).sort();
+  const allCountries = Array.from(new Set(mockData.payinEvents.map(p => p.country))).sort();
 
   // Obtener providers para el país seleccionado
   const providersInCountry = selectedCountry
     ? Array.from(new Set(
-        mockData.payoutEvents
+        mockData.payinEvents
           .filter(p => p.country === selectedCountry)
           .map(p => p.provider)
       )).sort()
     : [];
 
-  // Filtrar payouts por país y provider
-  const filteredPayouts = selectedCountry && selectedProvider
-    ? mockData.payoutEvents.filter(
+  // Filtrar payins por país y provider
+  const filteredPayins = selectedCountry && selectedProvider
+    ? mockData.payinEvents.filter(
         p => p.country === selectedCountry && p.provider === selectedProvider
       )
     : [];
 
   // Calcular KPIs del provider
   const calculateProviderMetrics = () => {
-    if (filteredPayouts.length === 0) {
+    if (filteredPayins.length === 0) {
       return {
-        totalPayouts: 0,
+        totalPayins: 0,
         successRate: 0,
-        failedPayouts: 0,
+        failedPayins: 0,
         totalVolume: '$0.0K',
         avgLatency: '0s',
         successCount: 0,
@@ -44,18 +44,18 @@ const Providers = () => {
       };
     }
 
-    const succeeded = filteredPayouts.filter(p => p.status === 'SUCCEEDED').length;
-    const failed = filteredPayouts.filter(p => p.status === 'FAILED').length;
-    const total = filteredPayouts.length;
+    const succeeded = filteredPayins.filter(p => p.status === 'SUCCEEDED').length;
+    const failed = filteredPayins.filter(p => p.status === 'FAILED').length;
+    const total = filteredPayins.length;
     const successRate = ((succeeded / total) * 100).toFixed(1);
-    const totalVolume = filteredPayouts.reduce((sum, p) => sum + p.amount, 0);
-    const avgLatency = (filteredPayouts.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / total).toFixed(2);
+    const totalVolume = filteredPayins.reduce((sum, p) => sum + p.amount, 0);
+    const avgLatency = (filteredPayins.reduce((sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000), 0) / total).toFixed(2);
     const failureRate = ((failed / total) * 100).toFixed(1);
 
     return {
-      totalPayouts: total,
+      totalPayins: total,
       successRate: parseFloat(successRate),
-      failedPayouts: failed,
+      failedPayins: failed,
       totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
       avgLatency: `${avgLatency}s`,
       successCount: succeeded,
@@ -184,8 +184,8 @@ const Providers = () => {
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 icon={TrendingUpIcon}
-                title="Payouts Procesados"
-                value={metrics.totalPayouts}
+                title="Payins Procesados"
+                value={metrics.totalPayins}
                 subtitle="Total en período"
                 color="#0F7AFF"
                 bgColor="rgba(15, 122, 255, 0.1)"
@@ -234,10 +234,10 @@ const Providers = () => {
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ p: 2, backgroundColor: 'rgba(0, 208, 132, 0.1)', borderRadius: 1 }}>
                       <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
-                        Payouts Exitosos
+                        Payins Exitosos
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 700, color: '#00D084' }}>
-                        {metrics.successCount}/{metrics.totalPayouts}
+                        {metrics.successCount}/{metrics.totalPayins}
                       </Typography>
                     </Box>
                   </Grid>
