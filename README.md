@@ -43,14 +43,14 @@ Barra de progreso que muestra intuitivamente cómo se distribuyen las transaccio
 - Expandible para ver detalles y payouts afectados
 - Se actualiza basado en el security score
 
-## � Páginas
+## Páginas
 
 1. **Dashboard general** - Vista general con KPIs y estado del sistema
 2. **Centro de Alertas** - Monitoreo centralizado de problemas por proveedor
 3. **Providers** - Monitoreo centralizado de transacciones filtrado por proveedor y país.
 4. **Merchants** - Monitoreo centralizado de transacciones del Merchant filtrado por rango de fechas, problemáticas en tiempo real y posibles soluciones accionables.
 
-## �📊 Tech Stack
+## Tech Stack
 
 - **Frontend**: React 19.2 + Vite
 - **UI Library**: Material-UI 7.3
