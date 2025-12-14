@@ -3,11 +3,10 @@
  * Las URLs se pueden definir vía variables de entorno VITE_*
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://kerri-presusceptible-gallfly.ngrok-free.dev';
+const API_BASE_URL = 'https://kerri-presusceptible-gallfly.ngrok-free.dev/api';
 
 // Endpoint de overview
-export const OVERVIEW_ENDPOINT = (from, to) => `${BACKEND_URL}/api/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+export const OVERVIEW_ENDPOINT = (from, to) => `${API_BASE_URL}/overview?from=${from}&to=${to}`;
 
 // Endpoints de Providers
 const PROVIDERS_ENDPOINTS = {
@@ -38,20 +37,45 @@ const SECURITY_ENDPOINTS = {
 export const apiClient = {
   async get(url, options = {}) {
     try {
+      console.log('Fetching from:', url);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'You-Know-Dashboard',
           ...options.headers,
         },
+        mode: 'cors',
+        credentials: 'omit',
         ...options,
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', {
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length')
+      });
+
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('HTTP Error:', response.status, errorText.substring(0, 200));
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Invalid content type:', contentType);
+        console.error('Response preview:', text.substring(0, 200));
+        throw new Error(`Expected JSON but got ${contentType}`);
+      }
+
+      const data = await response.json();
+      console.log('Successfully parsed JSON:', data);
+      return data;
     } catch (error) {
       console.error('API GET Error:', error);
       throw error;
@@ -60,21 +84,39 @@ export const apiClient = {
 
   async post(url, data, options = {}) {
     try {
+      console.log('POST to:', url, 'with payload:', data);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'You-Know-Dashboard',
           ...options.headers,
         },
         body: JSON.stringify(data),
+        mode: 'cors',
+        credentials: 'omit',
         ...options,
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('HTTP Error:', response.status, errorText.substring(0, 200));
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Invalid content type:', contentType);
+        throw new Error(`Expected JSON but got ${contentType}`);
+      }
+
+      const data = await response.json();
+      console.log('Successfully parsed JSON:', data);
+      return data;
     } catch (error) {
       console.error('API POST Error:', error);
       throw error;
@@ -129,7 +171,6 @@ export const apiClient = {
 
 export {
   API_BASE_URL,
-  BACKEND_URL,
   PROVIDERS_ENDPOINTS,
   PAYOUTS_ENDPOINTS,
   SECURITY_ENDPOINTS,

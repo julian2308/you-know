@@ -27,101 +27,55 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
-import { mockData } from '../data/mockData';
-import { client } from '../conf/ws';
+import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
 
-const Alerts = ({ allAlerts: initialAlerts = [] }) => {
-  const [expandedAlert, setExpandedAlert] = useState(null);
+const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
-  const [realtimeAlerts, setRealtimeAlerts] = useState([]);
+  const [allAlerts, setAllAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  /* =========================
-     MÉTRICAS (NO TOCAR)
-     ========================= */
-  const payins = mockData.payinEvents;
-  const succeeded = payins.filter(p => p.status === 'SUCCEEDED').length;
-  const failed = payins.filter(p => p.status === 'FAILED').length;
-  const totalPayins = payins.length;
-  const successRate = ((succeeded / totalPayins) * 100).toFixed(1);
-  const totalVolume = payins.reduce((sum, p) => sum + p.amount, 0);
-  const avgLatency = (
-    payins.reduce(
-      (sum, p) => sum + (p.processing_time_sec || p.latency_ms / 1000),
-      0
-    ) / totalPayins
-  ).toFixed(2);
+  const from = '2025-12-13T08:00:00';
+  const to = '2025-12-13T12:00:00';
 
-  const calculateSecurityScore = () => {
-    let score = 100;
-    const successFactor = (parseFloat(successRate) / 100) * 40;
-    score -= (40 - successFactor);
-
-    const passedRiskChecks = payins.filter(
-      p => p.risk_checks && p.risk_checks.length > 0
-    ).length;
-    const riskCheckFactor = (passedRiskChecks / totalPayins) * 30;
-    score -= (30 - riskCheckFactor);
-
-    const timeouts = payins.filter(
-      p => p.error_code === 'PROVIDER_TIMEOUT'
-    ).length;
-    const latencyPenalty = (timeouts / totalPayins) * 20;
-    score -= latencyPenalty;
-
-    const providers = Array.from(
-      new Set(payins.map(p => p.provider))
-    ).length;
-    const diversificationFactor = Math.min((providers / 3) * 10, 10);
-    score += diversificationFactor;
-
-    return Math.max(score, 0);
-  };
-
-  const securityScore = calculateSecurityScore();
-
-  /* =========================
-     WEBSOCKET ALERTS (REALTIME)
-     ========================= */
   useEffect(() => {
-    client.onConnect = () => {
-      client.subscribe('/topic/alerts', msg => {
-        const wsAlert = JSON.parse(msg.body);
+    const fetchAlerts = async () => {
+      try {
+        const url = OVERVIEW_ENDPOINT(from, to);
+        const data = await apiClient.get(url);
 
-        // Adaptar WS → modelo visual existente
-        const adaptedAlert = {
-          id: wsAlert.id || `ws-${Date.now()}`,
-          provider: wsAlert.provider || 'UNKNOWN',
+        // Map activeIssues to alerts format
+        const alerts = (data?.activeIssues || []).map(issue => ({
+          id: `${issue.merchantId}-${issue.incidentTag}`,
+          provider: issue.provider,
           severity:
-            wsAlert.level === 'CRITICAL'
+            issue.impactLevel === 'high'
               ? 'critical'
-              : wsAlert.level === 'WARNING'
+              : issue.impactLevel === 'medium'
               ? 'warning'
               : 'info',
-          errorCode: wsAlert.code || 'UNDEFINED',
-          errorMessage: wsAlert.message,
-          failureCount: wsAlert.failureCount || 1,
-          failureRate: wsAlert.failureRate || '100',
-          totalImpact: wsAlert.amount || 0,
-          actions: wsAlert.actions || [
-            'Review transaction logs',
-            'Validate provider status',
-            'Contact support'
-          ],
-          affectedPayins: []
-        };
+          errorCode: issue.incidentTag,
+          errorMessage: issue.title,
+          description: issue.description,
+          failureCount: issue.failedEvents || 0,
+          failureRate: (issue.errorRate || 0).toFixed(1),
+          merchantName: issue.merchantName,
+          countryCode: issue.countryCode,
+          paymentMethod: issue.paymentMethod,
+          suggestedAction: issue.suggestedActionType,
+          firstSeen: issue.firstSeen,
+          lastSeen: issue.lastSeen
+        }));
 
-        setRealtimeAlerts(prev => [adaptedAlert, ...prev]);
-      });
+        setAllAlerts(alerts);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching alerts:', err);
+        setLoading(false);
+      }
     };
 
-    client.activate();
-    return () => client.deactivate();
+    fetchAlerts();
   }, []);
-
-  /* =========================
-     ALERTAS (SOLO WS)
-     ========================= */
-  const allAlerts = initialAlerts.length > 0 ? initialAlerts : realtimeAlerts;
 
   const filteredAlerts =
     filterTab === 0
@@ -157,6 +111,14 @@ const Alerts = ({ allAlerts: initialAlerts = [] }) => {
         };
     }
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 6, textAlign: 'center' }}>
+        <Typography>Loading alerts...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -214,17 +176,18 @@ const Alerts = ({ allAlerts: initialAlerts = [] }) => {
           <TableHead>
             <TableRow>
               <TableCell>Provider</TableCell>
-              <TableCell>Type</TableCell>
+              <TableCell>Incident Type</TableCell>
+              <TableCell>Merchant</TableCell>
+              <TableCell>Country</TableCell>
               <TableCell>Severity</TableCell>
-              <TableCell>Message</TableCell>
-              <TableCell>Recommended Actions</TableCell>
-              <TableCell>Time</TableCell>
+              <TableCell>Error Rate</TableCell>
+              <TableCell>Last Seen</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} sx={{ textAlign: 'center', py: 3 }}>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 3 }}>
                   <CheckCircleIcon sx={{ fontSize: 48, color: '#00D084', mb: 2 }} />
                   <Typography variant="h6" fontWeight={700}>
                     No alerts
@@ -234,7 +197,6 @@ const Alerts = ({ allAlerts: initialAlerts = [] }) => {
             ) : (
               filteredAlerts.map(alert => {
                 const colors = getSeverityColor(alert.severity);
-                const expanded = expandedAlert === alert.id;
 
                 return (
                   <TableRow
@@ -249,34 +211,38 @@ const Alerts = ({ allAlerts: initialAlerts = [] }) => {
                       <Chip label={alert.provider} size="small" />
                     </TableCell>
                     <TableCell>
-                      {alert.errorCode}
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {alert.errorCode}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      {alert.severity === 'critical' ? 'Critical' : alert.severity === 'warning' ? 'Warning' : 'Info'}
+                      <Typography variant="body2">{alert.merchantName}</Typography>
                     </TableCell>
                     <TableCell>
-                      {alert.errorMessage}
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {alert.countryCode}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      {alert.severity !== 'warning' ? (
-                        <List dense>
-                          {alert.actions.map((action, i) => (
-                            <ListItem key={i}>
-                              <ListItemIcon>
-                                <LightbulbIcon color="warning" />
-                              </ListItemIcon>
-                              <ListItemText primary={action} />
-                            </ListItem>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#A0AEC0', fontStyle: 'italic' }}>
-                          No actions required
-                        </Typography>
-                      )}
+                      <Chip
+                        label={alert.severity.toUpperCase()}
+                        size="small"
+                        sx={{
+                          background: colors.border,
+                          color: '#fff',
+                          fontWeight: 600
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
-                      {new Date(alert.timestamp).toLocaleString()}
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.border }}>
+                        {alert.failureRate}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
+                        {new Date(alert.lastSeen).toLocaleString()}
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 );
