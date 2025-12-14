@@ -18,7 +18,13 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TableRow
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert
 } from '@mui/material';
 
 import WarningIcon from '@mui/icons-material/Warning';
@@ -30,10 +36,14 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { useAlerts } from '../hooks/useAlertsWarnings';
 import { useCriticalAlerts } from '../hooks/useCriticalAlerts';
 import errorRecommendations from '../constants/errorRecommendations.json';
+import TestCriticalAlertModal from '../components/TestCriticalAlertModal';
+import { apiClient } from '../config/apiConfig';
 
 const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
   const [expandedAlerts, setExpandedAlerts] = useState({});
+  const [openTestModal, setOpenTestModal] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
   const fromDate = '2020-01-01T00:00';
   const toDate = '2099-12-31T23:59';
   
@@ -52,6 +62,18 @@ const Alerts = () => {
   const { data: criticalAlerts = [], isLoading: criticalLoading } = useCriticalAlerts(fromDate, toDate);
   
   const loading = alertsLoading || criticalLoading;
+
+  const handleGenerateTestAlert = async (email) => {
+    setTestLoading(true);
+    try {
+      await apiClient.post('/test-critical-alert', { email });
+    } catch (err) {
+      console.error('Error generating test alert:', err);
+      throw new Error('No se pudo generar la alerta de prueba. Intenta nuevamente.');
+    } finally {
+      setTestLoading(false);
+    }
+  };
 
   // Map error codes to known recommendation codes
   const mapErrorCode = (errorCode) => {
@@ -231,14 +253,40 @@ const Alerts = () => {
   return (
     <Box>
       {/* HEADER */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-          Alerts
-        </Typography>
-        <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 3 }}>
-          Intelligent alerts and recommendations for payment routing.
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            Alerts
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#A0AEC0', mb: 3 }}>
+            Intelligent alerts and recommendations for payment routing.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setOpenTestModal(true)}
+          sx={{
+            borderColor: '#FF3B30',
+            color: '#FF3B30',
+            fontWeight: 600,
+            '&:hover': {
+              backgroundColor: 'rgba(255, 59, 48, 0.08)',
+              borderColor: '#FF3B30'
+            }
+          }}
+        >
+          🧪 Test Alert
+        </Button>
       </Box>
+
+      {/* TEST MODAL */}
+      <TestCriticalAlertModal
+        open={openTestModal}
+        onClose={() => setOpenTestModal(false)}
+        onSubmit={handleGenerateTestAlert}
+        loading={testLoading}
+      />
 
       {/* METRICS */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
