@@ -1,17 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField } from '@mui/material';
+import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField, List, ListItem, ListItemIcon, ListItemText, Collapse, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SpeedIcon from '@mui/icons-material/Speed';
 import WarningIcon from '@mui/icons-material/Warning';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, apiClient } from '../config/apiConfig';
+import errorRecommendations from '../constants/errorRecommendations.json';
 
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [expandedAlerts, setExpandedAlerts] = useState({});
+
+  // Map error codes to known recommendation codes
+  const mapErrorCode = (errorCode) => {
+    const errorCodeMap = {
+      'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
+      'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'RISK_BLOCKED': 'RISK_BLOCKED',
+      'AML_REJECTED': 'AML_REJECTED',
+      'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+    };
+    return errorCodeMap[errorCode] || null;
+  };
+
+  // Get recommendations from JSON based on error code
+  const getRecommendation = (errorCode) => {
+    const mappedCode = mapErrorCode(errorCode);
+    if (mappedCode) {
+      return errorRecommendations.errorRecommendations[mappedCode] || null;
+    }
+    return null;
+  };
+
+  // Toggle expanded state for alert actions
+  const toggleExpandAlert = (alertId) => {
+    setExpandedAlerts(prev => ({
+      ...prev,
+      [alertId]: !prev[alertId]
+    }));
+  };
   
   // Obtener fecha actual UTC en formato YYYY-MM-DD
   const getTodayUTC = () => {
@@ -94,6 +141,42 @@ const Merchants = () => {
 
   const merchantDetail = getMerchantData();
 
+  // Crear mock events con status correcto (incluyendo CANCELLED para USER)
+  const merchantMockEvents = (merchantDetail?.activeIssues || []).flatMap(issue => {
+    return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
+      let status = 'SUCCEEDED';
+      
+      if (issue.status) {
+        const apiStatus = issue.status?.trim()?.toUpperCase();
+        if (apiStatus === 'APPROVE' || apiStatus === 'APPROVED' || apiStatus === 'SUCCEED' || apiStatus === 'SUCCESS') {
+          status = 'SUCCEEDED';
+        } else if (apiStatus === 'FAILED' || apiStatus === 'FAIL') {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        } else {
+          status = apiStatus;
+        }
+      } else {
+        if (i < (issue.failedEvents || 0)) {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        }
+      }
+      
+      return {
+        id: `${issue.merchantId}-${i}`,
+        status: status,
+        country: issue.countryCode,
+        provider: issue.provider,
+        amount: 100,
+        merchant_id: issue.merchantId,
+        merchantName: issue.merchantName,
+        latencyMs: issue.avgLatencyMs,
+        errorCode: issue.mainErrorType
+      };
+    });
+  });
+
   // Obtener lista de merchants únicos desde activeIssues
   const allMerchants = Array.from(
     new Set((overview?.activeIssues || []).map(i => i.merchantId))
@@ -103,10 +186,12 @@ const Merchants = () => {
   // Intentar con 'activeIssues' primero, luego 'issues' como fallback
   const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
 
-  // Filtrar solo issues con fallos reales
-  const merchantIssuesWithFailures = merchantIssues.filter(issue => 
-    (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0
-  );
+  // Filtrar solo issues con fallos reales (excluyendo canceladas por usuario)
+  const merchantIssuesWithFailures = merchantIssues.filter(issue => {
+    const isCancelled = issue.mainErrorCategory === 'USER';
+    const hasFailures = (issue.failedEvents || 0) > 0 || (issue.errorRate || 0) > 0;
+    return hasFailures && !isCancelled;
+  });
 
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
@@ -123,7 +208,13 @@ const Merchants = () => {
     }
 
     const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
-    const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+    
+    // Separar fallos reales de canceladas por usuario
+    const totalFailed = merchantIssues.reduce((sum, i) => {
+      const isCancelled = i.mainErrorCategory === 'USER';
+      return isCancelled ? sum : sum + (i.failedEvents || 0);
+    }, 0);
+    
     const totalSuccess = totalEvents - totalFailed;
     const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
     
@@ -173,8 +264,15 @@ const Merchants = () => {
           status[issue.provider] = { total: 0, failed: 0, errors: [], latencyMs: issue.avgLatencyMs };
         }
         status[issue.provider].total += issue.totalEvents || 0;
-        status[issue.provider].failed += issue.failedEvents || 0;
-        if (issue.incidentTag) status[issue.provider].errors.push(issue.incidentTag);
+        
+        // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
+        const isCancelled = issue.mainErrorCategory === 'USER';
+        if (!isCancelled) {
+          status[issue.provider].failed += issue.failedEvents || 0;
+        }
+        
+        // Solo agregar error si no es cancelado por usuario
+        if (issue.incidentTag && !isCancelled) status[issue.provider].errors.push(issue.incidentTag);
       });
     }
 
@@ -510,50 +608,91 @@ const Merchants = () => {
                   {merchantIssuesWithFailures.map((issue, index) => {
                     const severityColor = issue.impactLevel === 'high' ? '#FF3B30' : issue.impactLevel === 'medium' ? '#FF9500' : '#0F7AFF';
                     
-                    // Create a user-friendly error message
-                    const getErrorMessage = (errorCode) => {
-                      const messages = {
-                        'TIMEOUT_SPIKE': 'Transaction processing delays detected',
-                        'PSE_TIMEOUT': 'Payment gateway timeout issue',
-                        'NETWORK_ERRORS': 'Network connectivity problems',
-                        'default': 'Payment processing issue'
-                      };
-                      return messages[errorCode] || messages['default'];
-                    };
-
-                    // Create a user-friendly action message
-                    const getActionMessage = (actionType) => {
-                      const actions = {
-                        'notify_ops': 'Please contact support to address this issue',
-                        'retry': 'Retry the transaction',
-                        'default': 'Take action to resolve'
-                      };
-                      return actions[actionType] || actions['default'];
-                    };
+                    const alertId = `${issue.incidentTag}-${issue.provider}`;
+                    const isExpanded = expandedAlerts[alertId] || false;
+                    const recommendation = getRecommendation(issue.incidentTag);
                     
                     return (
-                      <Alert 
-                        key={issue.incidentTag} 
-                        severity={issue.impactLevel === 'high' ? 'error' : issue.impactLevel === 'medium' ? 'warning' : 'info'}
-                        sx={{ mb: 0 }}
-                      >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                            {index + 1}. {issue.title}
-                          </Typography>
-                          <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-                            {getErrorMessage(issue.incidentTag)} • {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
-                          </Typography>
-                          <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
-                              Recommended Action:
-                            </Typography>
-                            <Typography variant="caption" sx={{ display: 'block' }}>
-                              {getActionMessage(issue.suggestedActionType)}
-                            </Typography>
+                      <Box key={issue.incidentTag}>
+                        <Alert 
+                          severity={issue.impactLevel === 'high' ? 'error' : issue.impactLevel === 'medium' ? 'warning' : 'info'}
+                          sx={{ mb: 0 }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                                {index + 1}. {issue.title}
+                              </Typography>
+                              <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                                {issue.failedEvents} transaction(s) failed out of {issue.totalEvents}
+                              </Typography>
+                              {recommendation && (
+                                <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${severityColor}` }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5, color: severityColor }}>
+                                    Recommended Action:
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ display: 'block' }}>
+                                    {recommendation.whatToDo}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                            {recommendation && (
+                              <Button
+                                size="small"
+                                onClick={() => toggleExpandAlert(alertId)}
+                                sx={{
+                                  minWidth: 0,
+                                  p: 0.5,
+                                  ml: 1,
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s'
+                                }}
+                              >
+                                <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                              </Button>
+                            )}
                           </Box>
-                        </Box>
-                      </Alert>
+                        </Alert>
+                        {isExpanded && recommendation && (
+                          <Box sx={{ 
+                            mt: 1, 
+                            p: 2, 
+                            background: 'rgba(0, 0, 0, 0.1)', 
+                            borderRadius: '4px',
+                            mb: 1,
+                            display: 'flex',
+                            gap: 2
+                          }}>
+                            <LightbulbIcon sx={{ fontSize: 24, color: '#FF9500', flexShrink: 0, mt: 0.5 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                Steps to resolve:
+                              </Typography>
+                              <List sx={{ pl: 0, py: 0 }}>
+                                {recommendation.actions.map((action, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
+                                    <ListItemIcon sx={{ minWidth: 24 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 600, color: severityColor }}>
+                                        {idx + 1}.
+                                      </Typography>
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={action}
+                                      primaryTypographyProps={{ variant: 'caption' }}
+                                    />
+                                  </ListItem>
+                                ))}
+                              </List>
+                              <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #2D3748' }}>
+                                <Typography variant="caption" sx={{ color: '#A0AEC0', fontSize: '11px' }}>
+                                  <strong>Est. time:</strong> {recommendation.estimatedResolutionTime}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
                     );
                   })}
                 </Box>

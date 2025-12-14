@@ -10,6 +10,7 @@ import SwapCallsIcon from '@mui/icons-material/SwapCalls';
 import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
 import { OVERVIEW_ENDPOINT, apiClient } from '../config/apiConfig';
+import errorRecommendations from '../constants/errorRecommendations.json';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +22,41 @@ const Dashboard = () => {
   // Fechas fijas
   const fromDate = '2025-12-13T08:00:00';
   const toDate = '2025-12-13T12:00:00';
+
+  // Map error codes to known recommendation codes
+  const mapErrorCode = (errorCode) => {
+    const errorCodeMap = {
+      'PROVIDER_TIMEOUT': 'PROVIDER_TIMEOUT',
+      'PROVIDER_UNAVAILABLE': 'PROVIDER_UNAVAILABLE',
+      'INSUFFICIENT_BALANCE': 'INSUFFICIENT_BALANCE',
+      'INSUFFICIENT_FUNDS': 'INSUFFICIENT_BALANCE',
+      'INVALID_ACCOUNT': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BENEFICIARY_DATA': 'INVALID_BENEFICIARY_DATA',
+      'INVALID_BANK_ACCOUNT': 'INVALID_BANK_ACCOUNT',
+      'ACCOUNT_BLOCKED': 'ACCOUNT_BLOCKED',
+      'ACCOUNT_CLOSED': 'ACCOUNT_CLOSED',
+      'AUTHORIZATION_REQUIRED': 'AUTHORIZATION_REQUIRED',
+      'AUTHORIZATION_EXPIRED': 'AUTHORIZATION_EXPIRED',
+      'PROVIDER_DECLINED': 'PROVIDER_DECLINED',
+      'RISK_BLOCKED': 'RISK_BLOCKED',
+      'AML_REJECTED': 'AML_REJECTED',
+      'SANCTIONS_MATCH': 'SANCTIONS_MATCH',
+      'INTERNAL_PROCESSING_ERROR': 'INTERNAL_PROCESSING_ERROR',
+      'RETRY_LIMIT_EXCEEDED': 'RETRY_LIMIT_EXCEEDED',
+      'PAYOUT_LIMIT_EXCEEDED': 'PAYOUT_LIMIT_EXCEEDED',
+      'DAILY_PAYOUT_LIMIT': 'DAILY_PAYOUT_LIMIT',
+    };
+    return errorCodeMap[errorCode] || null;
+  };
+
+  // Get recommendations from JSON based on error code
+  const getRecommendation = (errorCode) => {
+    const mappedCode = mapErrorCode(errorCode);
+    if (mappedCode) {
+      return errorRecommendations.errorRecommendations[mappedCode] || null;
+    }
+    return null;
+  };
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
@@ -54,19 +90,47 @@ const Dashboard = () => {
   }, [overview]);
 
   // Create mock events from activeIssues data
-  const mockEvents = (overview?.activeIssues || []).flatMap(issue => 
-    Array(issue.totalEvents || 0).fill(null).map((_, i) => ({
-      id: `${issue.merchantId}-${i}`,
-      status: i < (issue.failedEvents || 0) ? 'FAILED' : 'SUCCEEDED',
-      country: issue.countryCode,
-      provider: issue.provider,
-      amount: 100,
-      merchant_id: issue.merchantId,
-      merchantName: issue.merchantName,
-      latencyMs: issue.avgLatencyMs,
-      errorCode: issue.mainErrorType
-    }))
-  );
+  const mockEvents = (overview?.activeIssues || []).flatMap(issue => {
+    return Array(issue.totalEvents || 0).fill(null).map((_, i) => {
+      let status = 'SUCCEEDED';
+      
+      // Procesar el status de la API con nuestra lógica
+      if (issue.status) {
+        const apiStatus = issue.status?.trim()?.toUpperCase();
+        
+        // Si es aprobado o exitoso
+        if (apiStatus === 'APPROVE' || apiStatus === 'APPROVED' || apiStatus === 'SUCCEED' || apiStatus === 'SUCCESS') {
+          status = 'SUCCEEDED';
+        } 
+        // Si es fallido, revisar mainErrorCategory
+        else if (apiStatus === 'FAILED' || apiStatus === 'FAIL') {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        } 
+        else {
+          status = apiStatus;
+        }
+      } else {
+        // Fallback: si no hay status, generar basado en failedEvents
+        if (i < (issue.failedEvents || 0)) {
+          const isCancelled = issue.mainErrorCategory?.trim()?.toUpperCase() === 'USER';
+          status = isCancelled ? 'CANCELLED' : 'FAILED';
+        }
+      }
+      
+      return {
+        id: `${issue.merchantId}-${i}`,
+        status: status,
+        country: issue.countryCode,
+        provider: issue.provider,
+        amount: 100,
+        merchant_id: issue.merchantId,
+        merchantName: issue.merchantName,
+        latencyMs: issue.avgLatencyMs,
+        errorCode: issue.mainErrorType
+      };
+    });
+  });
 
   // Obtener lista de países únicos desde los activeIssues
   const allCountries = Array.from(
@@ -84,14 +148,19 @@ const Dashboard = () => {
     : (overview?.activeIssues || []).filter(i => i.countryCode === selectedCountry);
 
   // Calcular métricas basadas en el país seleccionado
+  // Excluir fallos cancelados por usuario (mainErrorCategory === 'USER')
+  const countryFailed = filteredIssues.reduce((sum, i) => {
+    const isCancelled = i.mainErrorCategory === 'USER';
+    return isCancelled ? sum : sum + (i.failedEvents || 0);
+  }, 0);
   const countrySucceeded = filteredIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0);
-  const countryFailed = filteredIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
   const countryTotalPayins = filteredIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
   const successRate = countryTotalPayins > 0 ? ((countrySucceeded / countryTotalPayins) * 100).toFixed(1) : '0.0';
   
-  // Calculate total volume from filtered activeIssues
+  // Calculate total volume from successful transactions only (excluding failed/cancelled)
   const totalVolume = filteredIssues.reduce((sum, issue) => {
-    return sum + (issue.totalEvents * 100);
+    const successfulEvents = (issue.totalEvents || 0) - (issue.failedEvents || 0);
+    return sum + (successfulEvents * 100);
   }, 0);
   
   const avgLatency = filteredIssues.length > 0 
@@ -450,6 +519,8 @@ const Dashboard = () => {
                           <CheckCircleIcon sx={{ fontSize: 18, color: '#00D084' }} />
                           <Typography variant="body2">Successful</Typography>
                         </>
+                      ) : payin.status === 'CANCELLED' ? (
+                        <Typography variant="body2">Cancelled</Typography>
                       ) : (
                         <>
                           <ErrorIcon sx={{ fontSize: 18, color: '#FF3B30' }} />
