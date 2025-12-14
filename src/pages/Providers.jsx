@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, LinearProgress, FormControl, Select, MenuItem } from '@mui/material';
+import { Box, Grid, Paper, Typography, LinearProgress, FormControl, Select, MenuItem, TextField } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -13,13 +13,14 @@ const Providers = () => {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  // Fechas fijas
+  const fromDate = '2025-12-13T08:00:00';
+  const toDate = '2025-12-13T12:00:00';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
         setOverview(data);
         setLoading(false);
@@ -153,7 +154,7 @@ const Providers = () => {
         </Typography>
 
         {/* Filtros */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 4, flexDirection: { xs: 'column', md: 'row' } }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 4, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' } }}>
           <FormControl sx={{ minWidth: 250 }}>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
               Select Country

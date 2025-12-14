@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button, Select, MenuItem, FormControl } from '@mui/material';
+import { Box, Grid, Paper, Typography, LinearProgress, Chip, Icon, Button, Select, MenuItem, FormControl, TextField } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -18,17 +18,16 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fechas de ejemplo, puedes parametrizar
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  // Fechas fijas
+  const fromDate = '2025-12-13T08:00:00';
+  const toDate = '2025-12-13T12:00:00';
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const url = OVERVIEW_ENDPOINT(from, to);
+      const url = OVERVIEW_ENDPOINT(fromDate, toDate);
       const response = await apiClient.get(url);
-      // Handle response - check if it's already parsed JSON or needs parsing
       const data = typeof response === 'string' ? JSON.parse(response) : response;
       setOverview(data);
     } catch (err) {
@@ -37,7 +36,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [from, to]);
+  }, []);
 
   useEffect(() => {
     fetchOverview();
@@ -226,29 +225,37 @@ const Dashboard = () => {
               Transfer Processing & Routing System • Real-time monitoring of merchant payments
             </Typography>
           </Box>
-          <FormControl sx={{ minWidth: 200 }}>
-            <Select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              sx={{
-                backgroundColor: '#151B2E',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 1,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255,255,255,0.08)'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#0F7AFF'
-                }
-              }}
-            >
-              <MenuItem value="ALL">All countries</MenuItem>
-              {allCountries.map(country => (
-                <MenuItem key={country} value={country}>{country}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#A0AEC0', display: 'block', mb: 1 }}>
+                Country
+              </Typography>
+              <FormControl sx={{ minWidth: 150 }}>
+                <Select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  sx={{
+                    backgroundColor: '#151B2E',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 1,
+                    height: 40,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(255,255,255,0.08)'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#0F7AFF'
+                    }
+                  }}
+                >
+                  <MenuItem value="ALL">All countries</MenuItem>
+                  {allCountries.map(country => (
+                    <MenuItem key={country} value={country}>{country}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
         </Box>
       </Box>
 

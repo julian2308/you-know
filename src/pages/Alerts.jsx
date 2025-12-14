@@ -33,14 +33,13 @@ const Alerts = () => {
   const [filterTab, setFilterTab] = useState(0);
   const [allAlerts, setAllAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const from = '2025-12-13T08:00:00';
-  const to = '2025-12-13T12:00:00';
+  const [fromDate, setFromDate] = useState('2025-12-10T08:00');
+  const [toDate, setToDate] = useState('2025-12-15T12:00');
 
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const url = OVERVIEW_ENDPOINT(from, to);
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
 
         // Map activeIssues to alerts format - only include issues with failures
@@ -77,7 +76,7 @@ const Alerts = () => {
     };
 
     fetchAlerts();
-  }, []);
+  }, [fromDate, toDate]);
 
   const filteredAlerts =
     filterTab === 0

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert } from '@mui/material';
+import { Box, Grid, Paper, Typography, FormControl, Select, MenuItem, Chip, Alert, TextField } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -10,23 +10,50 @@ import { OVERVIEW_ENDPOINT, MERCHANT_DETAIL_ENDPOINT, apiClient } from '../confi
 
 const Merchants = () => {
   const [selectedMerchant, setSelectedMerchant] = useState('');
-  const [merchantDetail, setMerchantDetail] = useState(null);
-  const [loadingMerchant, setLoadingMerchant] = useState(false);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Obtener fecha actual UTC en formato YYYY-MM-DD
+  const getTodayUTC = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+  
+  // Usar UTC now como fecha inicial
+  const [selectedDate, setSelectedDate] = useState(() => getTodayUTC());
 
-  const [from, setFrom] = useState('2025-12-13T08:00:00');
-  const [to, setTo] = useState('2025-12-13T12:00:00');
+  // Calcular fechas automáticamente en UTC
+  const getDateRange = (dateString) => {
+    // Parsear la fecha como UTC (agregando 'Z' al final)
+    const date = new Date(`${dateString}T00:00:00Z`);
+    const nextDay = new Date(date);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    
+    const fromDate = `${dateString}T00:00:00`;
+    const toDate = `${nextDay.toISOString().split('T')[0]}T00:00:00`;
+    
+    return { fromDate, toDate };
+  };
 
-  const normalizeDT = (v) => (v && v.length === 16 ? `${v}:00` : v); // datetime-local suele venir sin segundos
+  const { fromDate, toDate } = getDateRange(selectedDate);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const url = OVERVIEW_ENDPOINT(normalizeDT(from), normalizeDT(to));
+        const url = OVERVIEW_ENDPOINT(fromDate, toDate);
         const data = await apiClient.get(url);
         setOverview(data);
+        
+        // Verificar si el merchant seleccionado aún existe en los nuevos datos
+        const newMerchants = Array.from(
+          new Set((data?.activeIssues || []).map(i => i.merchantId))
+        );
+        
+        // Si el merchant seleccionado no existe en los nuevos datos, limpiar la selección
+        if (selectedMerchant && !newMerchants.includes(selectedMerchant)) {
+          setSelectedMerchant('');
+        }
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -35,34 +62,37 @@ const Merchants = () => {
     };
 
     fetchData();
-  }, [from, to]);
+  }, [selectedDate, selectedMerchant]);
 
-  useEffect(() => {
-    const fetchMerchant = async () => {
-      if (!selectedMerchant) {
-        setMerchantDetail(null);
-        return;
-      }
+  // Filtrar los datos del overview para el merchant seleccionado
+  const getMerchantData = () => {
+    if (!selectedMerchant || !overview?.activeIssues) {
+      return null;
+    }
 
-      try {
-        setLoadingMerchant(true);
-        const url = MERCHANT_DETAIL_ENDPOINT(
-          selectedMerchant,
-          normalizeDT(from),
-          normalizeDT(to)
-        );
-        const data = await apiClient.get(url);
-        setMerchantDetail(data);
-      } catch (err) {
-        console.error('Error fetching merchant detail:', err);
-        setMerchantDetail(null);
-      } finally {
-        setLoadingMerchant(false);
-      }
+    // Filtrar los activeIssues para el merchant seleccionado
+    const merchantIssues = overview.activeIssues.filter(issue => issue.merchantId === selectedMerchant);
+
+    if (merchantIssues.length === 0) {
+      return null;
+    }
+
+    // Construir el objeto merchantDetail con los datos filtrados
+    return {
+      merchantId: selectedMerchant,
+      from: overview.from,
+      to: overview.to,
+      activeIssues: merchantIssues,
+      totalEvents: merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0),
+      totalSuccess: merchantIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0),
+      totalFailed: merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0),
+      avgLatencyMs: merchantIssues.length > 0 
+        ? merchantIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / merchantIssues.length
+        : 0,
     };
+  };
 
-    fetchMerchant();
-  }, [selectedMerchant, from, to]);
+  const merchantDetail = getMerchantData();
 
   // Obtener lista de merchants únicos desde activeIssues
   const allMerchants = Array.from(
@@ -70,7 +100,8 @@ const Merchants = () => {
   ).sort();
 
   // Obtener issues del merchant seleccionado
-  const merchantIssues = merchantDetail?.issues || [];
+  // Intentar con 'activeIssues' primero, luego 'issues' como fallback
+  const merchantIssues = merchantDetail?.activeIssues || merchantDetail?.issues || [];
 
   // Filtrar solo issues con fallos reales
   const merchantIssuesWithFailures = merchantIssues.filter(issue => 
@@ -79,37 +110,28 @@ const Merchants = () => {
 
   // Calcular KPIs del merchant
   const calculateMerchantMetrics = () => {
-    if (!merchantDetail) return { totalPayins: 0, successRate: 0, failedPayins: 0, totalVolume: '$0.0K', avgLatency: '0s', successCount: 0, failureRate: 0 };
+    if (merchantIssues.length === 0) {
+      return {
+        totalPayins: 0,
+        successRate: 0,
+        failedPayins: 0,
+        totalVolume: '$0.0K',
+        avgLatency: '0s',
+        successCount: 0,
+        failureRate: 0
+      };
+    }
 
-<<<<<<< HEAD
-    const totalEvents = merchantDetail.totalEvents || 0;
-    const failed = merchantDetail.failedEvents || 0;
-    const success = merchantDetail.successEvents || (totalEvents - failed);
-
-    const successRate = totalEvents ? (success / totalEvents) * 100 : 0;
-    const failureRate = totalEvents ? (failed / totalEvents) * 100 : 0;
-
-    const avgLatencyMs =
-      (merchantDetail.providers || []).length
-        ? (merchantDetail.providers.reduce((sum, p) => sum + (p.avgLatencyMs || 0), 0) / merchantDetail.providers.length)
-        : 0;
-
-    return {
-      totalPayins: totalEvents,
-      successRate: Number(successRate.toFixed(1)),
-      failedPayins: failed,
-      totalVolume: merchantDetail.failedAmount ? `$${merchantDetail.failedAmount}` : '$0.0K',
-      avgLatency: `${(avgLatencyMs / 1000).toFixed(2)}s`,
-      successCount: success,
-      failureRate: Number(failureRate.toFixed(1))
-=======
     const totalEvents = merchantIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
     const totalFailed = merchantIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
     const totalSuccess = totalEvents - totalFailed;
     const successRate = totalEvents > 0 ? ((totalSuccess / totalEvents) * 100).toFixed(1) : '0.0';
     
-    // Calculate total volume from merchant issues
-    const volumeAmount = merchantIssues.reduce((sum, i) => sum + (i.totalEvents * 100), 0);
+    // Calculate total volume from successful transactions only (excluding failed/cancelled)
+    const volumeAmount = merchantIssues.reduce((sum, i) => {
+      const successfulEvents = (i.totalEvents || 0) - (i.failedEvents || 0);
+      return sum + (successfulEvents * 100);
+    }, 0);
     const totalVolume = `$${(volumeAmount / 1000).toFixed(1)}K`;
     
     const avgLatency = merchantIssues.length > 0 
@@ -125,7 +147,6 @@ const Merchants = () => {
       avgLatency: `${avgLatency}s`,
       successCount: totalSuccess,
       failureRate: parseFloat(failureRate)
->>>>>>> 3ce958c4e13a9acbb22429c61833d9dd1c6397ff
     };
   };
 
@@ -239,71 +260,65 @@ const Merchants = () => {
           List of merchants and their payment activity.
         </Typography>
 
-        {/* Merchant Filter */}
-        <FormControl sx={{ minWidth: 300 }}>
-          <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-            Select Merchant
-          </Typography>
-          <Select
-            value={selectedMerchant}
-            onChange={(e) => setSelectedMerchant(e.target.value)}
-            sx={{
-              backgroundColor: '#151B2E',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 1,
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.08)'
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#0F7AFF'
-              }
-            }}
-          >
-            <MenuItem value="">Select your business</MenuItem>
-            {allMerchants.map(merchant => {
-              const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
-              return (
-                <MenuItem key={merchant} value={merchant}>
-                  {merchantName || merchant}
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
-          {/* Date range (historical filter) */}
-        <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-          <FormControl>
-            <Typography
-              variant="caption"
-              sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}
-            >
-              From
+        {/* Date Range and Merchant Filter */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' } }}>
+          <Box>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
+              Date
             </Typography>
-            <input
-              type="datetime-local"
-              value={from.slice(0, 16)}
-              onChange={(e) => setFrom(normalizeDT(e.target.value))}
-              style={{ padding: 10, borderRadius: 8 }}
+            <TextField
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              sx={{
+                width: 200,
+                '& input': {
+                  color: '#fff',
+                  fontSize: '0.875rem',
+                  padding: '10px'
+                },
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                }
+              }}
             />
-          </FormControl>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mt: 1, display: 'block', fontSize: '0.75rem', fontStyle: 'italic' }}>
+              Showing data for {selectedDate} (00:00) to next day (00:00)
+            </Typography>
+          </Box>
 
-          <FormControl>
-            <Typography
-              variant="caption"
-              sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}
-            >
-              To
+          <FormControl sx={{ minWidth: 300 }}>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
+              Select Merchant
             </Typography>
-            <input
-              type="datetime-local"
-              value={to.slice(0, 16)}
-              onChange={(e) => setTo(normalizeDT(e.target.value))}
-              style={{ padding: 10, borderRadius: 8 }}
-            />
+            <Select
+              value={selectedMerchant}
+              onChange={(e) => setSelectedMerchant(e.target.value)}
+              sx={{
+                backgroundColor: '#151B2E',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 1,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255,255,255,0.08)'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#0F7AFF'
+                }
+              }}
+            >
+              <MenuItem value="">Select your business</MenuItem>
+              {allMerchants.map(merchant => {
+                const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
+                return (
+                  <MenuItem key={merchant} value={merchant}>
+                    {merchantName || merchant}
+                  </MenuItem>
+                );
+              })}
+            </Select>
           </FormControl>
         </Box>
-
       </Box>
 
       {/* Content */}
