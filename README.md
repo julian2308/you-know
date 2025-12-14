@@ -141,8 +141,10 @@ Usado para:
 
 - Pruebas de alertas y routing
 
-## Diagrama de Arquitectura
+## Diagramas de Arquitectura
+<img width="867" height="546" alt="image" src="https://github.com/user-attachments/assets/f2492717-f05b-4632-803b-56156f999446" />
 
+## Diagrama de Flujo
 <img width="1461" height="690" alt="image" src="https://github.com/user-attachments/assets/4f182022-c2d7-47a6-9d78-7eeab56cdc6a" />
 
 
