@@ -66,11 +66,18 @@ const Merchants = () => {
     return now.toISOString().split('T')[0];
   };
   
-  // Usar UTC now como fecha inicial
-  const [selectedDate, setSelectedDate] = useState(() => getTodayUTC());
+  // Fecha opcional (vacía por defecto)
+  const [selectedDate, setSelectedDate] = useState('');
 
   // Calcular fechas automáticamente en UTC
   const getDateRange = (dateString) => {
+    if (!dateString) {
+      // Si no hay fecha, usar rango muy amplio para ver todos los datos
+      const fromDate = '1970-01-01T00:00:00';
+      const toDate = '2099-12-31T23:59:59';
+      return { fromDate, toDate };
+    }
+    
     // Parsear la fecha como UTC (agregando 'Z' al final)
     const date = new Date(`${dateString}T00:00:00Z`);
     const nextDay = new Date(date);
@@ -89,13 +96,16 @@ const Merchants = () => {
       try {
         setLoading(true);
         const url = OVERVIEW_ENDPOINT(fromDate, toDate);
+        console.log('Fetching from URL:', url);
         const data = await apiClient.get(url);
+        console.log('Received data:', data);
         setOverview(data);
         
         // Verificar si el merchant seleccionado aún existe en los nuevos datos
         const newMerchants = Array.from(
           new Set((data?.activeIssues || []).map(i => i.merchantId))
         );
+        console.log('Available merchants:', newMerchants);
         
         // Si el merchant seleccionado no existe en los nuevos datos, limpiar la selección
         if (selectedMerchant && !newMerchants.includes(selectedMerchant)) {
@@ -358,11 +368,55 @@ const Merchants = () => {
           List of merchants and their payment activity.
         </Typography>
 
-        {/* Date Range and Merchant Filter */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' } }}>
+        {/* Merchant Filter and Date Range */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start', justifyContent: { md: 'space-between' } }}>
           <Box>
             <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-              Date
+              Select Merchant
+            </Typography>
+            <FormControl sx={{ minWidth: 250 }}>
+              {loading ? (
+                <Typography variant="body2" sx={{ color: '#A0AEC0', py: 2 }}>
+                  Loading merchants...
+                </Typography>
+              ) : allMerchants.length === 0 ? (
+                <Typography variant="body2" sx={{ color: '#FF9500', py: 2 }}>
+                  No merchants found for this period. Try a different date range or check back later.
+                </Typography>
+              ) : (
+                <Select
+                  value={selectedMerchant}
+                  onChange={(e) => setSelectedMerchant(e.target.value)}
+                  sx={{
+                    backgroundColor: '#151B2E',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(255,255,255,0.08)'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#0F7AFF'
+                    }
+                  }}
+                >
+                  <MenuItem value="">Select your business</MenuItem>
+                  {allMerchants.map(merchant => {
+                    const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
+                    return (
+                      <MenuItem key={merchant} value={merchant}>
+                        {merchantName || merchant}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              )}
+            </FormControl>
+          </Box>
+
+          <Box sx={{ textAlign: { md: 'right' } }}>
+            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
+              Date (Optional)
             </Typography>
             <TextField
               type="date"
@@ -381,41 +435,12 @@ const Merchants = () => {
               }}
             />
             <Typography variant="caption" sx={{ color: '#A0AEC0', mt: 1, display: 'block', fontSize: '0.75rem', fontStyle: 'italic' }}>
-              Showing data for {selectedDate} (00:00) to next day (00:00)
+              {selectedDate 
+                ? `Showing data for ${selectedDate} (00:00) to next day (00:00)`
+                : 'Showing all historical data'
+              }
             </Typography>
           </Box>
-
-          <FormControl sx={{ minWidth: 300 }}>
-            <Typography variant="caption" sx={{ color: '#A0AEC0', mb: 1, display: 'block' }}>
-              Select Merchant
-            </Typography>
-            <Select
-              value={selectedMerchant}
-              onChange={(e) => setSelectedMerchant(e.target.value)}
-              sx={{
-                backgroundColor: '#151B2E',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 1,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255,255,255,0.08)'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#0F7AFF'
-                }
-              }}
-            >
-              <MenuItem value="">Select your business</MenuItem>
-              {allMerchants.map(merchant => {
-                const merchantName = (overview?.activeIssues || []).find(i => i.merchantId === merchant)?.merchantName;
-                return (
-                  <MenuItem key={merchant} value={merchant}>
-                    {merchantName || merchant}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
         </Box>
       </Box>
 
