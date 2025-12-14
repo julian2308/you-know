@@ -66,7 +66,22 @@ const Alerts = () => {
   const handleGenerateTestAlert = async (email) => {
     setTestLoading(true);
     try {
-      await apiClient.post('/test-critical-alert', { email });
+      // Construir la URL con el parámetro EMAIL
+      const url = `/alerts?email=${encodeURIComponent(email)}`;
+      
+      // Datos de la alerta de prueba
+      const alertData = {
+        merchantId: "m_travelgo",
+        merchantName: "TravelGo",
+        countryCode: "PE",
+        provider: "PAYU",
+        incidentTag: "INC-PE-CARD-USER-003",
+        category: "PROVIDER",
+        lastSeen: new Date().toISOString()
+      };
+      
+      // Enviar POST con el body especificado
+      await apiClient.post(url, alertData);
     } catch (err) {
       console.error('Error generating test alert:', err);
       throw new Error('No se pudo generar la alerta de prueba. Intenta nuevamente.');
