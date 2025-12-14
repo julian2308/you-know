@@ -79,21 +79,31 @@ const Dashboard = () => {
     ? mockEvents
     : mockEvents.filter(p => p.country === selectedCountry);
   
-  const succeeded = overview?.totalSuccess || 0;
-  const failed = overview?.totalFailed || 0;
-  const totalPayins = overview?.totalEvents || 0;
-  const successRate = totalPayins > 0 ? ((succeeded / totalPayins) * 100).toFixed(1) : '0.0';
-  const totalVolume = overview?.totalVolume || 0;
-  const avgLatency = overview?.avgLatencyMs ? (overview.avgLatencyMs / 1000).toFixed(2) : '0.00';
+  // Filtrar activeIssues por país
+  const filteredIssues = selectedCountry === 'ALL'
+    ? (overview?.activeIssues || [])
+    : (overview?.activeIssues || []).filter(i => i.countryCode === selectedCountry);
 
-  // Security Score y factores desde el backend
-  const securityScore = overview?.securityScore ?? 75;
-  const securityFactors = overview?.securityFactors ?? { 
-    success: (succeeded / totalPayins * 60).toFixed(1) || '0', 
-    latency: '15', 
-    diversification: '8' 
-  };
+  // Calcular métricas basadas en el país seleccionado
+  const countrySucceeded = filteredIssues.reduce((sum, i) => sum + (i.totalEvents - (i.failedEvents || 0)), 0);
+  const countryFailed = filteredIssues.reduce((sum, i) => sum + (i.failedEvents || 0), 0);
+  const countryTotalPayins = filteredIssues.reduce((sum, i) => sum + (i.totalEvents || 0), 0);
+  const successRate = countryTotalPayins > 0 ? ((countrySucceeded / countryTotalPayins) * 100).toFixed(1) : '0.0';
   
+  // Calculate total volume from filtered activeIssues
+  const totalVolume = filteredIssues.reduce((sum, issue) => {
+    return sum + (issue.totalEvents * 100);
+  }, 0);
+  
+  const avgLatency = filteredIssues.length > 0 
+    ? (filteredIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / filteredIssues.length / 1000).toFixed(2)
+    : '0.00';
+
+  // Security Score basado en el país seleccionado
+  const countrySecurityScore = countryTotalPayins > 0 
+    ? Math.max(100 - ((countryFailed / countryTotalPayins) * 100), 0)
+    : 100;
+
   const getSecurityGrade = (score) => {
     const numScore = typeof score === 'string' ? parseFloat(score) : score;
     if (numScore >= 95) return 'A+';
@@ -144,17 +154,23 @@ const Dashboard = () => {
   }
 
   const kpis = {
-    totalPayins,
+    totalPayins: countryTotalPayins,
     successRate: parseFloat(successRate),
-    failedPayins: failed,
+    failedPayins: countryFailed,
     totalVolume: `$${(totalVolume / 1000).toFixed(1)}K`,
     avgLatency: `${avgLatency}s`,
-    providers: Array.from(new Set((overview?.activeIssues || []).map(i => i.provider))).length,
-    securityScore: typeof securityScore === 'string' ? securityScore : securityScore.toFixed(1),
-    securityGrade: getSecurityGrade(securityScore),
+    providers: Array.from(new Set(filteredIssues.map(i => i.provider))).length,
+    securityScore: countrySecurityScore.toFixed(1),
+    securityGrade: getSecurityGrade(countrySecurityScore),
     alertCount: alerts.filter(a => a.severity === 'critical').length
   };
 
+  const securityFactors = {
+    success: (countrySucceeded / countryTotalPayins * 60).toFixed(1) || '0', 
+    latency: (20 - (parseFloat(avgLatency) / 2)).toFixed(1) || '15', 
+    diversification: Array.from(new Set(filteredIssues.map(i => i.provider))).length * 3 > 20 ? '20' : (Array.from(new Set(filteredIssues.map(i => i.provider))).length * 3).toFixed(1)
+  };
+  
   const MetricCard = ({ icon: IconComponent, title, value, subtitle, color = '#0F7AFF', bgColor = 'rgba(15, 122, 255, 0.1)' }) => (
     <Paper sx={{ 
       p: 3, 
@@ -294,7 +310,7 @@ const Dashboard = () => {
               {Array.from(new Set(payins.map(p => p.provider))).map((provider, idx) => {
                 const providerPayins = payins.filter(p => p.provider === provider);
                 const providerIssues = (overview?.activeIssues || []).filter(i => i.provider === provider);
-                const percentage = totalPayins > 0 ? ((providerPayins.length / totalPayins) * 100).toFixed(0) : '0';
+                const percentage = countryTotalPayins > 0 ? ((providerPayins.length / countryTotalPayins) * 100).toFixed(0) : '0';
                 const avgLatencyProvider = providerIssues.length > 0 
                   ? (providerIssues.reduce((sum, i) => sum + (i.avgLatencyMs || 0), 0) / providerIssues.length).toFixed(0)
                   : 0;
@@ -343,7 +359,7 @@ const Dashboard = () => {
                       Verified Payins
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: '#00D084', mb: 1 }}>
-                      {succeeded}/{totalPayins}
+                      {countrySucceeded}/{countryTotalPayins}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#A0AEC0' }}>
                       Successful transactions
@@ -413,7 +429,7 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {mockEvents.slice(0, 10).map((payin, idx) => (
+              {payins.slice(0, 10).map((payin, idx) => (
                 <tr key={idx}>
                   <td><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{payin.id}</Typography></td>
                   <td><Typography variant="body2">{payin.merchantName || payin.merchant_id}</Typography></td>
